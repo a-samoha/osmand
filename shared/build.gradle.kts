@@ -20,7 +20,7 @@ kotlin {
     }
     
     android {
-       namespace = "com.osmand.myapplication.shared"
+       namespace = "com.samos.osmand.shared"
        compileSdk = libs.versions.android.compileSdk.get().toInt()
        minSdk = libs.versions.android.minSdk.get().toInt()
     

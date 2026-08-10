@@ -22,11 +22,11 @@ dependencies {
 }
 
 android {
-    namespace = "com.osmand.myapplication"
+    namespace = "com.samos.osmand"
     compileSdk = libs.versions.android.compileSdk.get().toInt()
 
     defaultConfig {
-        applicationId = "com.osmand.myapplication"
+        applicationId = "com.samos.osmand"
         minSdk = libs.versions.android.minSdk.get().toInt()
         targetSdk = libs.versions.android.targetSdk.get().toInt()
         versionCode = 1
