@@ -9,6 +9,7 @@ import androidx.navigation.compose.rememberNavController
 import com.samos.osmand.presentation.navigation.router.ComposeRouter
 import com.samos.osmand.presentation.navigation.router.NavigationEffect
 import com.samos.osmand.presentation.navigation.router.NavigationRoute
+import com.samos.osmand.presentation.screen.download.DownloadScreen
 import com.samos.osmand.presentation.screen.splash.SplashScreen
 import org.koin.compose.koinInject
 
@@ -46,7 +47,7 @@ fun MainNavHost(
         }
 
         composable<NavigationRoute.Download> {
-
+            DownloadScreen()
         }
     }
 }
