@@ -4,8 +4,8 @@ import com.samos.osmand.presentation.mvi.MviState
 
 data class DownloadState(
     val isLoading: Boolean = false,
-    val deviceMemoryAmount: Float = 3.16f,
-    val deviceMemoryProgress: Float = 0.56f,
+    val usableMemory: String? = null,
+    val usedMemoryProgress: Float = 0f,
     val items: List<DownloadItemModel> = getMockItems(),
 ) : MviState
 

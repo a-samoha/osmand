@@ -72,8 +72,8 @@ fun DownloadScreenContent(
                 ),
         ) {
             DeviceMemoryBar(
-                deviceMemoryAmount = state.deviceMemoryAmount,
-                deviceMemoryProgress = state.deviceMemoryProgress,
+                usableMemoryAmount = state.usableMemory,
+                usedMemoryProgress = state.usedMemoryProgress,
                 modifier = Modifier.fillMaxWidth(),
             )
 
@@ -110,8 +110,8 @@ fun DownloadScreenContent(
 
 @Composable
 private fun DeviceMemoryBar(
-    deviceMemoryAmount: Float,
-    deviceMemoryProgress: Float,
+    usableMemoryAmount: String?,
+    usedMemoryProgress: Float,
     modifier: Modifier = Modifier,
 ) {
     Column(
@@ -131,16 +131,18 @@ private fun DeviceMemoryBar(
                 minLines = 1,
                 style = MaterialTheme.typography.bodySmall,
             )
-            Text(
-                text = "Free $deviceMemoryAmount Gb",
-                color = MaterialTheme.colorScheme.onBackground,
-                overflow = TextOverflow.Ellipsis,
-                minLines = 1,
-                style = MaterialTheme.typography.bodySmall,
-            )
+            usableMemoryAmount?.let {
+                Text(
+                    text = "Free $usableMemoryAmount",
+                    color = MaterialTheme.colorScheme.onBackground,
+                    overflow = TextOverflow.Ellipsis,
+                    minLines = 1,
+                    style = MaterialTheme.typography.bodySmall,
+                )
+            }
         }
         LinearProgressIndicator(
-            progress = { deviceMemoryProgress },
+            progress = { usedMemoryProgress },
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(top = 10.dp)
