@@ -101,7 +101,7 @@ fun appTypography(): Typography {
             fontWeight = FontWeight.Light,
             fontSize = bodySmallTextSize,
             lineHeight = bodySmallTextSize,
-            letterSpacing = 0.sp,
+            letterSpacing = 0.1.sp,
         ),
     )
 }

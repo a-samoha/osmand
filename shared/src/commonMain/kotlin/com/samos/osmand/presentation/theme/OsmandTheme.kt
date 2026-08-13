@@ -12,6 +12,7 @@ private val lightScheme = lightColorScheme(
     primary = PrimaryLight,
     onPrimary = OnPrimaryLight,
     background = BackgroundLight,
+    onBackground = OnBackgroundLight,
     inversePrimary = InversePrimaryLight,
     surface = SurfaceLight,
     onSurface = OnSurfaceLight,
@@ -21,12 +22,13 @@ private val darkScheme = darkColorScheme(
     primary = PrimaryDark,
     onPrimary = OnPrimaryDark,
     background = BackgroundDark,
+    onBackground = OnBackgroundLight,
     surface = SurfaceDark,
     onSurface = OnSurfaceDark,
 )
 
 @Composable
-fun ArthaAppTheme(
+fun OsmandAppTheme(
     isDarkTheme: Boolean = isSystemInDarkTheme(),
     content: @Composable () -> Unit
 ) {
