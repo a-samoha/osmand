@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Icon
@@ -27,6 +28,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.samos.osmand.presentation.base.component.TopAppBar
+import com.samos.osmand.presentation.base.noRippleClickable
 import com.samos.osmand.presentation.screen.download.viewmodel.DownloadIntent
 import com.samos.osmand.presentation.screen.download.viewmodel.DownloadItemModel
 import com.samos.osmand.presentation.screen.download.viewmodel.DownloadState
@@ -45,7 +47,8 @@ fun DownloadScreen(
 
     DownloadScreenContent(
         state = state,
-        onNavigationIconClick = { viewModel.handleIntent(DownloadIntent.NavigateBack) }
+        onNavigationIconClick = { viewModel.handleIntent(DownloadIntent.NavigateBack) },
+        onCategoryClick = { viewModel.handleIntent(DownloadIntent.OnCategoryClick) },
     )
 }
 
@@ -53,6 +56,7 @@ fun DownloadScreen(
 fun DownloadScreenContent(
     state: DownloadState,
     onNavigationIconClick: () -> Unit = {},
+    onCategoryClick: () -> Unit = {},
 ) {
     Scaffold(
         modifier = Modifier.fillMaxSize(),
@@ -99,7 +103,10 @@ fun DownloadScreenContent(
                     items = state.items,
                     key = { item -> item.id }
                 ) { item ->
-                    DownloadItemRow(item = item)
+                    DownloadItemRow(
+                        item = item,
+                        onCategoryClick = onCategoryClick,
+                    )
                 }
             }
 
@@ -197,6 +204,7 @@ fun CustomSpacer(
 @Composable
 private fun DownloadItemRow(
     item: DownloadItemModel,
+    onCategoryClick: () -> Unit = {},
 ) {
     Row(
         modifier = Modifier.fillMaxWidth()
@@ -218,6 +226,9 @@ private fun DownloadItemRow(
             style = MaterialTheme.typography.bodyMedium,
         )
         Icon(
+            modifier = Modifier
+                .wrapContentSize()
+                .noRippleClickable { onCategoryClick.invoke() },
             painter = painterResource(Res.drawable.ic_download),
             contentDescription = "Download",
             tint = MaterialTheme.colorScheme.onSurface

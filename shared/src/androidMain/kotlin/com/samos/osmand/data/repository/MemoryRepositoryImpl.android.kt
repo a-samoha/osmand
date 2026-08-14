@@ -1,7 +1,8 @@
-package com.samos.osmand.domain.repository
+package com.samos.osmand.data.repository
 
 import android.os.Environment
 import android.os.StatFs
+import com.samos.osmand.domain.repository.MemoryRepository
 
 class AndroidMemoryRepository : MemoryRepository {
 

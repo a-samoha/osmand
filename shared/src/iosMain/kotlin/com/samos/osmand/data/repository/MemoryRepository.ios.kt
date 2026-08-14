@@ -1,5 +1,6 @@
-package com.samos.osmand.domain.repository
+package com.samos.osmand.data.repository
 
+import com.samos.osmand.domain.repository.MemoryRepository
 import kotlinx.cinterop.ExperimentalForeignApi
 import platform.Foundation.NSFileManager
 import platform.Foundation.NSFileSystemFreeSize

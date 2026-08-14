@@ -22,7 +22,8 @@ private val darkScheme = darkColorScheme(
     primary = PrimaryDark,
     onPrimary = OnPrimaryDark,
     background = BackgroundDark,
-    onBackground = OnBackgroundLight,
+    onBackground = OnBackgroundDark,
+    inversePrimary = InversePrimaryDark,
     surface = SurfaceDark,
     onSurface = OnSurfaceDark,
 )
