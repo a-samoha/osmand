@@ -14,6 +14,10 @@ sealed interface DownloadIntent : MviIntent {
         val mapId: String,
     ) : DownloadIntent
 
+    data class OnCancelDownloadClick(
+        val mapId: String,
+    ) : DownloadIntent
+
     data class OnDeleteMapClick(
         val mapId: String,
     ) : DownloadIntent

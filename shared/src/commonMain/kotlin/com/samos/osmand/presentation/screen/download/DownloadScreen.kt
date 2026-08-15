@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Icon
@@ -21,11 +22,13 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.samos.osmand.domain.model.DownloadStatus
 import com.samos.osmand.presentation.base.component.TopAppBar
 import com.samos.osmand.presentation.base.noRippleClickable
 import com.samos.osmand.presentation.screen.download.viewmodel.DownloadIntent
@@ -37,6 +40,8 @@ import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.viewmodel.koinViewModel
 import osmand.shared.generated.resources.Res
 import osmand.shared.generated.resources.download_maps
+import osmand.shared.generated.resources.ic_cancel
+import osmand.shared.generated.resources.ic_delete
 import osmand.shared.generated.resources.ic_download
 import osmand.shared.generated.resources.ic_map
 
@@ -60,6 +65,9 @@ fun DownloadScreen(
         onDeleteMapClick = { itemId ->
             viewModel.handleIntent(DownloadIntent.OnDeleteMapClick(itemId))
         },
+        onCancelDownloadClick = { itemId ->
+            viewModel.handleIntent(DownloadIntent.OnCancelDownloadClick(itemId))
+        },
     )
 }
 
@@ -70,6 +78,7 @@ fun DownloadScreenContent(
     onMapDownloadItemClick: (String) -> Unit = {},
     onDownloadMapClick: (String) -> Unit = {},
     onDeleteMapClick: (String) -> Unit = {},
+    onCancelDownloadClick: (String) -> Unit = {},
 ) {
     Scaffold(
         modifier = Modifier.fillMaxSize(),
@@ -115,6 +124,7 @@ fun DownloadScreenContent(
                         onMapDownloadItemClick = onMapDownloadItemClick,
                         onDownloadMapClick = onDownloadMapClick,
                         onDeleteMapClick = onDeleteMapClick,
+                        onCancelDownloadClick = onCancelDownloadClick,
                     )
                 }
             }
@@ -216,6 +226,7 @@ private fun DownloadItemRow(
     onMapDownloadItemClick: (String) -> Unit = {},
     onDownloadMapClick: (String) -> Unit = {},
     onDeleteMapClick: (String) -> Unit = {},
+    onCancelDownloadClick: (String) -> Unit = {}
 ) {
     Row(
         modifier = Modifier.fillMaxWidth()
@@ -227,28 +238,69 @@ private fun DownloadItemRow(
     ) {
         Icon(
             painter = painterResource(Res.drawable.ic_map),
-            contentDescription = "Map",
-            modifier = Modifier
-                .noRippleClickable { onDeleteMapClick.invoke(item.id) }
-                .padding(start = 4.dp),
+            contentDescription = "Map Icon",
+            modifier = Modifier.padding(start = 16.dp),
             tint = MaterialTheme.colorScheme.onSurface
         )
-        Text(
-            text = item.displayName,
-            modifier = Modifier.weight(1f).padding(horizontal = 24.dp),
-            color = MaterialTheme.colorScheme.onBackground,
-            overflow = TextOverflow.Ellipsis,
-            maxLines = 1,
-            style = MaterialTheme.typography.bodyMedium,
-        )
-        if (!item.isContainer) {
-            Icon(
-                painter = painterResource(Res.drawable.ic_download),
-                contentDescription = "Download",
-                modifier = Modifier
-                    .noRippleClickable { onDownloadMapClick.invoke(item.id) }, // e.g.: "Denmark_capital-region_europe_2.obf.zip"
-                tint = MaterialTheme.colorScheme.onSurface
+
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                .padding(horizontal = 24.dp)
+        ) {
+            Text(
+                text = item.displayName,
+                color = MaterialTheme.colorScheme.onBackground,
+                overflow = TextOverflow.Ellipsis,
+                maxLines = 1,
+                style = MaterialTheme.typography.bodyMedium,
             )
+
+            if (item.status is DownloadStatus.Downloading) {
+                LinearProgressIndicator(
+                    progress = { item.status.progress / 100f },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 4.dp)
+                        .height(3.dp),
+                    color = Color(0xFF2175F3),
+                    trackColor = Color(0xFFE5E5E5)
+                )
+            }
+        }
+
+        if (!item.isContainer) {
+            when (item.status) {
+                is DownloadStatus.Downloaded -> {
+                    Icon(
+                        painter = painterResource(Res.drawable.ic_delete),
+                        contentDescription = "Delete Map",
+                        modifier = Modifier
+                            .noRippleClickable { onDeleteMapClick.invoke(item.id) }
+                            .size(24.dp)
+                            .padding(4.dp),
+                        tint = MaterialTheme.colorScheme.onSurface
+                    )
+                }
+                is DownloadStatus.Downloading, DownloadStatus.InQueue -> {
+                    Icon(
+                        painter = painterResource(Res.drawable.ic_cancel),
+                        contentDescription = "Cancel Download",
+                        modifier = Modifier
+                            .noRippleClickable { onCancelDownloadClick.invoke(item.id) },
+                        tint = MaterialTheme.colorScheme.onSurface
+                    )
+                }
+                else -> {
+                    Icon(
+                        painter = painterResource(Res.drawable.ic_download),
+                        contentDescription = "Start Download",
+                        modifier = Modifier
+                            .noRippleClickable { onDownloadMapClick.invoke(item.id) },
+                        tint = MaterialTheme.colorScheme.onSurface
+                    )
+                }
+            }
         }
     }
 }

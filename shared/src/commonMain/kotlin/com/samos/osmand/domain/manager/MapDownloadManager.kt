@@ -10,4 +10,6 @@ interface MapDownloadManager {
     fun enqueueDownload(node: RegionNode, forceOverwrite: Boolean = false)
 
     fun deleteMapFile(node: RegionNode)
+
+    fun cancelDownload(node: RegionNode)
 }

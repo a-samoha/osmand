@@ -9,6 +9,7 @@ import com.samos.osmand.domain.repository.MapRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
@@ -32,6 +33,7 @@ class MapDownloadManagerImpl(
 
     private val _downloadStates = MutableStateFlow<Map<RegionNode, DownloadStatus>>(emptyMap())
     override val downloadStates = _downloadStates.asStateFlow()
+    private val activeJobs = mutableMapOf<RegionNode, Job>()
 
     init {
         scanLocalDownloads()
@@ -43,29 +45,38 @@ class MapDownloadManagerImpl(
     override fun enqueueDownload(node: RegionNode, forceOverwrite: Boolean) {
         _downloadStates.update { it + (node to DownloadStatus.InQueue) }
 
-        downloadScope.launch {
-            queueMutex.withLock {
-                _downloadStates.update { it + (node to DownloadStatus.Downloading(0)) }
-                val fileName = generateFileName(node)
+        val downloadJob = downloadScope.launch {
+            try {
+                queueMutex.withLock {
+                    _downloadStates.update { it + (node to DownloadStatus.Downloading(0)) }
+                    val fileName = generateFileName(node)
 
-                repository.downloadMapFile(fileName, forceOverwrite).collect { result ->
-                    when (result) {
-                        is MapDownloadResult.Progress -> {
-                            _downloadStates.update { it + (node to DownloadStatus.Downloading(result.percent)) }
-                        }
-                        is MapDownloadResult.Success -> {
-                            _downloadStates.update { it + (node to DownloadStatus.Downloaded) }
-                        }
-                        is MapDownloadResult.Error -> {
-                            _downloadStates.update { it + (node to DownloadStatus.Error(result.message)) }
-                        }
-                        is MapDownloadResult.FileAlreadyExists -> {
-                            // UI dialog triggers
+                    repository.downloadMapFile(fileName, forceOverwrite).collect { result ->
+                        when (result) {
+                            is MapDownloadResult.Progress -> {
+                                _downloadStates.update {
+                                    it + (node to DownloadStatus.Downloading(
+                                        result.percent
+                                    ))
+                                }
+                            }
+                            is MapDownloadResult.Success -> {
+                                _downloadStates.update { it + (node to DownloadStatus.Downloaded) }
+                            }
+                            is MapDownloadResult.Error -> {
+                                _downloadStates.update { it + (node to DownloadStatus.Error(result.message)) }
+                            }
+                            is MapDownloadResult.FileAlreadyExists -> { /* Dialog handling */
+                            }
                         }
                     }
                 }
+            } finally {
+                activeJobs.remove(node)
             }
         }
+
+        activeJobs[node] = downloadJob
     }
 
     /**
@@ -84,6 +95,18 @@ class MapDownloadManagerImpl(
                 _downloadStates.update { it + (node to DownloadStatus.Error("Deletion failed: ${e.message}")) }
             }
         }
+    }
+
+    override fun cancelDownload(node: RegionNode) {
+        val runningJob = activeJobs[node]
+
+        if (runningJob != null && runningJob.isActive) {
+            runningJob.cancel()
+            deleteMapFile(node)
+            println("Log Network: Download cancelled by user for node: ${node.name}")
+        }
+
+        _downloadStates.update { it + (node to DownloadStatus.NotDownloaded) }
     }
 
     /**

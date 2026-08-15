@@ -85,6 +85,14 @@ class DownloadViewModel(
                 println("Log MVI ERROR: Could not find RegionNode for download with ID: ${intent.mapId}")
             }
         }
+        is DownloadIntent.OnCancelDownloadClick -> {
+            val node = findNodeById(intent.mapId)
+            if (node != null) {
+                cancelMapDownload(node)
+            } else {
+                println("Log MVI ERROR: Could not find RegionNode for cancel downloading with ID: ${intent.mapId}")
+            }
+        }
         is DownloadIntent.OnDeleteMapClick -> {
             val node = findNodeById(intent.mapId)
             if (node != null) {
@@ -107,6 +115,10 @@ class DownloadViewModel(
 
     fun startMapDownload(node: RegionNode, forceOverwrite: Boolean = false) {
         downloadManager.enqueueDownload(node, forceOverwrite)
+    }
+
+    fun cancelMapDownload(node: RegionNode) {
+        downloadManager.cancelDownload(node)
     }
 
     fun deleteMap(node: RegionNode) {
