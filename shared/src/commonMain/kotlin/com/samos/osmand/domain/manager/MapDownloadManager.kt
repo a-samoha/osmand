@@ -1,12 +1,13 @@
 package com.samos.osmand.domain.manager
 
 import com.samos.osmand.domain.model.DownloadStatus
+import com.samos.osmand.domain.model.xml.RegionNode
 import kotlinx.coroutines.flow.StateFlow
 
 interface MapDownloadManager {
-    val downloadStates: StateFlow<Map<String, DownloadStatus>>
+    val downloadStates: StateFlow<Map<RegionNode, DownloadStatus>>
 
-    fun enqueueDownload(fileName: String, forceOverwrite: Boolean = false)
+    fun enqueueDownload(node: RegionNode, forceOverwrite: Boolean = false)
 
-    fun deleteMapFile(fileName: String)
+    fun deleteMapFile(node: RegionNode)
 }

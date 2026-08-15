@@ -1,6 +1,7 @@
 package com.samos.osmand.presentation.screen.download.viewmodel
 
 import com.samos.osmand.domain.model.DownloadStatus
+import com.samos.osmand.domain.model.xml.RegionNode
 import com.samos.osmand.presentation.mvi.MviState
 
 data class DownloadState(
@@ -11,7 +12,9 @@ data class DownloadState(
 ) : MviState
 
 data class MapDownloadItemModel(
-    val id: String,
-    val fileName: String,
-    val status: DownloadStatus
+    val id: String,             // fileName
+    val displayName: String,    // Clean name for UI (e.g. "Germany" or "Berlin")
+    val status: DownloadStatus,
+    val isContainer: Boolean,   // true = open screen, false = download file
+    val childRegions: List<RegionNode> = emptyList() // To pass to the next screen if clicked
 )

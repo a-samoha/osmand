@@ -47,20 +47,14 @@ fun DownloadScreen(
 
     DownloadScreenContent(
         state = state,
-        onNavigationIconClick = { viewModel.handleIntent(DownloadIntent.NavigateBack) },
-        onDownloadMapClick = { fileName ->
-            viewModel.handleIntent(
-                DownloadIntent.OnDownloadMapClick(
-                    fileName
-                )
-            )
+        onNavigationIconClick = {
+            viewModel.handleIntent(DownloadIntent.NavigateBack)
         },
-        onDeleteMapClick = { fileName ->
-            viewModel.handleIntent(
-                DownloadIntent.OnDeleteMapClick(
-                    fileName
-                )
-            )
+        onDownloadMapClick = { itemId ->
+            viewModel.handleIntent(DownloadIntent.OnDownloadMapClick(itemId))
+        },
+        onDeleteMapClick = { itemId ->
+            viewModel.handleIntent(DownloadIntent.OnDeleteMapClick(itemId))
         },
     )
 }
@@ -235,20 +229,22 @@ private fun DownloadItemRow(
             tint = MaterialTheme.colorScheme.onSurface
         )
         Text(
-            text = item.fileName,
+            text = item.displayName,
             modifier = Modifier.weight(1f).padding(horizontal = 24.dp),
             color = MaterialTheme.colorScheme.onBackground,
             overflow = TextOverflow.Ellipsis,
             maxLines = 1,
             style = MaterialTheme.typography.bodyMedium,
         )
-        Icon(
-            modifier = Modifier
-                .wrapContentSize()
-                .noRippleClickable { onDownloadMapClick.invoke(item.id) }, // "Denmark_capital-region_europe_2.obf.zip"
-            painter = painterResource(Res.drawable.ic_download),
-            contentDescription = "Download",
-            tint = MaterialTheme.colorScheme.onSurface
-        )
+        if (!item.isContainer) {
+            Icon(
+                modifier = Modifier
+                    .wrapContentSize()
+                    .noRippleClickable { onDownloadMapClick.invoke(item.id) }, // "Denmark_capital-region_europe_2.obf.zip"
+                painter = painterResource(Res.drawable.ic_download),
+                contentDescription = "Download",
+                tint = MaterialTheme.colorScheme.onSurface
+            )
+        }
     }
 }

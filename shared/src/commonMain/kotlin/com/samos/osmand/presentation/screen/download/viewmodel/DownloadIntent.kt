@@ -7,10 +7,10 @@ sealed interface DownloadIntent : MviIntent {
     object NavigateBack : DownloadIntent
 
     data class OnDownloadMapClick(
-        val fileName: String,
+        val mapId: String,
     ) : DownloadIntent
 
     data class OnDeleteMapClick(
-        val fileName: String,
+        val mapId: String,
     ) : DownloadIntent
 }

@@ -18,6 +18,7 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.io.files.Path
 import kotlinx.io.files.SystemFileSystem
 import kotlinx.io.files.SystemTemporaryDirectory
+import nl.adaptivity.xmlutil.XmlDeclMode
 import nl.adaptivity.xmlutil.serialization.XML
 import osmand.shared.generated.resources.Res
 
@@ -29,7 +30,7 @@ class MapDownloadManagerImpl(
     private val downloadsFolder = Path(SystemTemporaryDirectory, "Downloads")
     private val queueMutex = Mutex() // A mutex guarantees sequential execution
 
-    private val _downloadStates = MutableStateFlow<Map<String, DownloadStatus>>(emptyMap())
+    private val _downloadStates = MutableStateFlow<Map<RegionNode, DownloadStatus>>(emptyMap())
     override val downloadStates = _downloadStates.asStateFlow()
 
     init {
@@ -39,30 +40,27 @@ class MapDownloadManagerImpl(
     /**
      * 2. ADDING TO QUEUE: Sequential loading via Mutex
      */
-    override fun enqueueDownload(fileName: String, forceOverwrite: Boolean) {
-        // Update specific item state to 'InQueue' without changing other maps
-        _downloadStates.update { it + (fileName to DownloadStatus.InQueue) }
+    override fun enqueueDownload(node: RegionNode, forceOverwrite: Boolean) {
+        _downloadStates.update { it + (node to DownloadStatus.InQueue) }
 
         downloadScope.launch {
-            // The lock is closing. The next file will wait here until this one finishes collecting.
             queueMutex.withLock {
-                _downloadStates.update { it + (fileName to DownloadStatus.Downloading(0)) }
+                _downloadStates.update { it + (node to DownloadStatus.Downloading(0)) }
+                val fileName = generateFileName(node)
 
                 repository.downloadMapFile(fileName, forceOverwrite).collect { result ->
                     when (result) {
                         is MapDownloadResult.Progress -> {
-                            _downloadStates.update {
-                                it + (fileName to DownloadStatus.Downloading(result.percent))
-                            }
+                            _downloadStates.update { it + (node to DownloadStatus.Downloading(result.percent)) }
                         }
                         is MapDownloadResult.Success -> {
-                            _downloadStates.update { it + (fileName to DownloadStatus.Downloaded) }
+                            _downloadStates.update { it + (node to DownloadStatus.Downloaded) }
                         }
                         is MapDownloadResult.Error -> {
-                            _downloadStates.update { it + (fileName to DownloadStatus.Error(result.message)) }
+                            _downloadStates.update { it + (node to DownloadStatus.Error(result.message)) }
                         }
                         is MapDownloadResult.FileAlreadyExists -> {
-                            // UI overwrite dialog handling logic triggers here
+                            // UI dialog triggers
                         }
                     }
                 }
@@ -73,21 +71,17 @@ class MapDownloadManagerImpl(
     /**
      * 3. DELETE FROM DISK: Deletes the file and clears the status in the UI.
      */
-    override fun deleteMapFile(fileName: String) {
+    override fun deleteMapFile(node: RegionNode) {
         downloadScope.launch {
             try {
+                val fileName = generateFileName(node)
                 val filePath = Path(downloadsFolder, fileName)
-
                 if (SystemFileSystem.exists(filePath)) {
-                    // Delete the file using kotlinx-io
                     SystemFileSystem.delete(filePath)
-                    println("File successfully deleted from storage: $fileName")
                 }
-                // 💡 Reset state back to 'NotDownloaded' instead of removing from the map completely
-                _downloadStates.update { it + (fileName to DownloadStatus.NotDownloaded) }
+                _downloadStates.update { it + (node to DownloadStatus.NotDownloaded) }
             } catch (e: Exception) {
-                println("Failed to delete file $fileName: ${e.message}")
-                _downloadStates.update { it + (fileName to DownloadStatus.Error("Deletion failed: ${e.message}")) }
+                _downloadStates.update { it + (node to DownloadStatus.Error("Deletion failed: ${e.message}")) }
             }
         }
     }
@@ -98,55 +92,79 @@ class MapDownloadManagerImpl(
     private fun scanLocalDownloads() {
         downloadScope.launch {
             try {
-                // 1. Parse map names from the XML asset file
-                val parsedMaps = parseMapNamesFromXml()
-                println("Test allAppMaps: $parsedMaps")
+                // 1. Read and parse XML into raw objects tree
+                val parsedNodes = parseXmlTree()
 
+                // 2. Build flat list of all leaves/nodes from the tree
+                val allNodes = flattenNodes(parsedNodes)
+
+                // 3. Initialize everything as NotDownloaded
                 val initialStates =
-                    parsedMaps.associateTo(mutableMapOf<String, DownloadStatus>()) { fileName ->
-                        fileName to DownloadStatus.NotDownloaded
+                    allNodes.associateTo(mutableMapOf<RegionNode, DownloadStatus>()) { node ->
+                        node to DownloadStatus.NotDownloaded
                     }
 
-                // 2. Check physical disk storage for existing files
+                // 4. Check disk storage using file name generated from each node
                 if (SystemFileSystem.exists(downloadsFolder)) {
-                    for (fileName in parsedMaps) {
-                        val filePath = Path(downloadsFolder, fileName)
-                        if (SystemFileSystem.exists(filePath)) {
-                            // Mark file as fully downloaded and ready offline
-                            initialStates[fileName] = DownloadStatus.Downloaded
+                    for (node in allNodes) {
+                        val fileName = generateFileName(node)
+                        // Skip empty strings if the node is a pure container without an asset file
+                        if (fileName.isNotEmpty()) {
+                            val filePath = Path(downloadsFolder, fileName)
+                            if (SystemFileSystem.exists(filePath)) {
+                                // Now this assignment is perfectly legal
+                                initialStates[node] = DownloadStatus.Downloaded
+                            }
                         }
                     }
                 }
 
-                // Update StateFlow with initial offline map data
+                // Publish the complete map list with initial statuses
                 _downloadStates.value = initialStates
                 println("Log XML: Successfully published ${initialStates.size} maps to StateFlow")
             } catch (e: Exception) {
-                println("Critical error during local downloads scanning: ${e.message}")
+                println("Critical error during local nodes scanning: ${e.message}")
             }
         }
     }
 
-    private suspend fun parseMapNamesFromXml(): List<String> {
+    // Helper to flatten recursive XML nodes for scanning initialization
+    private fun flattenNodes(nodes: List<RegionNode>): List<RegionNode> {
+        val flatList = mutableListOf<RegionNode>()
+        for (node in nodes) {
+            flatList.add(node)
+            if (node.subRegions.isNotEmpty()) {
+                flatList.addAll(flattenNodes(node.subRegions))
+            }
+        }
+        return flatList
+    }
+
+    // Wrapper to get string file name using your existing rule
+    private fun generateFileName(node: RegionNode): String {
+        // Reuse your extractMapFileNames rule here for a single node context
+        return extractMapFileNames(listOf(node), parentSuffix = "europe").firstOrNull() ?: ""
+    }
+
+    private suspend fun parseXmlTree(): List<RegionNode> {
         return try {
             // Read XML file from Compose Multiplatform shared resources
             val xmlBytes = Res.readBytes("files/regions.xml")
             val rawXml = xmlBytes.decodeToString()
 
-            // No configuration needed anymore because all fields are explicitly declared in the data class
-            val xmlParser = XML {}
+            // Configure the XML parser engine for XMLUtil 0.90+
+            val xmlParser = XML {
+                xmlDeclMode = XmlDeclMode.None
+                indent = 0
+            }
 
             // Deserialize XML into Kotlin tree structures
             val container = xmlParser.decodeFromString(RegionsListXml.serializer(), rawXml)
-            println("Log XML: Successfully deserialized root regions")
+            println("Log XML: Successfully deserialized ${container.regions.size} root regions from XML tree")
 
-            // Flatten the recursive tree into a clean list of file names (defaulting to 'europe' suffix)
-            val generatedNames = extractMapFileNames(container.regions, parentSuffix = "europe")
-            println("Log XML: Extraction finished. Generated ${generatedNames.size} total map names")
-
-            generatedNames
+            container.regions
         } catch (e: Exception) {
-            println("Log XML CRITICAL ERROR: ${e.message}")
+            println("Log XML CRITICAL ERROR during tree parsing: ${e.message}")
             e.printStackTrace()
             emptyList()
         }
@@ -178,8 +196,9 @@ class MapDownloadManagerImpl(
             val currentSuffix = node.inner_download_suffix ?: parentSuffix
 
             // If the node represents an actual map asset, construct its name
-            val isMap =
-                node.map == "yes" || (node.type == "map" || (node.type == null && node.map != "no"))
+            val isMap = node.map == "yes"
+                    || (node.type == "map"
+                    || (node.type == null && node.map != "no"))
 
             if (isMap && node.name != null) {
                 val baseName = StringBuilder()

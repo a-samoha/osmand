@@ -2,6 +2,7 @@ package com.samos.osmand.presentation.screen.download.viewmodel
 
 import androidx.lifecycle.viewModelScope
 import com.samos.osmand.domain.manager.MapDownloadManager
+import com.samos.osmand.domain.model.xml.RegionNode
 import com.samos.osmand.domain.repository.MemoryRepository
 import com.samos.osmand.presentation.mvi.MviEffect
 import com.samos.osmand.presentation.mvi.MviViewModel
@@ -27,13 +28,16 @@ class DownloadViewModel(
         viewModelScope.launch {
             downloadManager.downloadStates.collect { statesMap ->
                 // Map the Map<String, DownloadStatus> into your List<MapDownloadItemModel>
-                val mappedItems = statesMap.map { (fileName, status) ->
+                val mappedItems = statesMap.map { (node, status) ->
                     MapDownloadItemModel(
-                        id = fileName,
-                        fileName = fileName,
-                        status = status
+                        id = node.name ?: "",
+                        displayName = node.name?.replace("-", " ")?.replaceFirstChar { it.uppercase() } ?: "",
+                        status = status,
+                        // 💡 If it has sub-regions, it's a container (like Germany), not a downloadable file
+                        isContainer = node.subRegions.isNotEmpty(),
+                        childRegions = node.subRegions
                     )
-                }
+                }.sortedBy { it.displayName }
 
                 updateState { currentState ->
                     currentState.copy(
@@ -50,19 +54,39 @@ class DownloadViewModel(
             router.navigateBack()
         }
         is DownloadIntent.OnDownloadMapClick -> {
-            startMapDownload(intent.fileName, true)
+            val node = findNodeById(intent.mapId)
+            if (node != null) {
+                startMapDownload(node, true)
+            } else {
+                println("Log MVI ERROR: Could not find RegionNode for download with ID: ${intent.mapId}")
+            }
         }
         is DownloadIntent.OnDeleteMapClick -> {
-            deleteMap(intent.fileName)
+            val node = findNodeById(intent.mapId)
+            if (node != null) {
+                deleteMap(node)
+            } else {
+                println("Log MVI ERROR: Could not find RegionNode for deletion with ID: ${intent.mapId}")
+            }
         }
     }
 
-    fun startMapDownload(fileName: String, forceOverwrite: Boolean = false) {
-        downloadManager.enqueueDownload(fileName, forceOverwrite)
+    private fun findNodeById(mapId: String): RegionNode? {
+        // Access the synchronous snapshot of the current states map from the manager
+        val currentStatesMap = downloadManager.downloadStates.value
+
+        // Search the keys (RegionNodes) to find the first one that matches the requested mapId
+        return currentStatesMap.keys.firstOrNull { node ->
+            node.name == mapId
+        }
     }
 
-    fun deleteMap(fileName: String) {
-        downloadManager.deleteMapFile(fileName)
+    fun startMapDownload(node: RegionNode, forceOverwrite: Boolean = false) {
+        downloadManager.enqueueDownload(node, forceOverwrite)
+    }
+
+    fun deleteMap(node: RegionNode,) {
+        downloadManager.deleteMapFile(node)
     }
 
     private fun formatBytes(bytes: Long): String {
