@@ -1,6 +1,6 @@
 package com.samos.osmand.domain.repository
 
-import com.samos.osmand.domain.model.DownloadResult
+import com.samos.osmand.domain.model.MapDownloadResult
 import kotlinx.coroutines.flow.Flow
 
 interface MapRepository {
@@ -8,5 +8,5 @@ interface MapRepository {
     fun downloadMapFile(
         fileName: String,
         forceOverwrite: Boolean = false
-    ): Flow<DownloadResult>
+    ): Flow<MapDownloadResult>
 }

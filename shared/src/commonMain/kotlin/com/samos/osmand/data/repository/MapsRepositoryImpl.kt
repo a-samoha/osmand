@@ -1,7 +1,7 @@
 package com.samos.osmand.data.repository
 
 import com.samos.osmand.data.source.OsmandApi
-import com.samos.osmand.domain.model.DownloadResult
+import com.samos.osmand.domain.model.MapDownloadResult
 import com.samos.osmand.domain.repository.MapRepository
 import io.ktor.client.statement.bodyAsChannel
 import io.ktor.http.contentLength
@@ -25,7 +25,7 @@ class MapRepositoryImpl(
     override fun downloadMapFile(
         fileName: String,
         forceOverwrite: Boolean,
-    ): Flow<DownloadResult> = flow {
+    ): Flow<MapDownloadResult> = flow {
 
         // 1. Check and create the Downloads folder if it doesn't exist yet
         if (!SystemFileSystem.exists(downloadsFolder)) {
@@ -37,7 +37,7 @@ class MapRepositoryImpl(
 
         // 2. CHECK: If the file exists and the user has NOT yet approved to overwrite.
         if (SystemFileSystem.exists(targetFilePath) && !forceOverwrite) {
-            emit(DownloadResult.FileAlreadyExists)
+            emit(MapDownloadResult.FileAlreadyExists)
             return@flow // Pause execution, wait for user reaction
         }
 
@@ -66,15 +66,15 @@ class MapRepositoryImpl(
                                 ((totalBytesDownloaded.toDouble() / totalBytes) * 100).roundToInt()
                             if (progressPercent != lastSentPercent) {
                                 lastSentPercent = progressPercent
-                                emit(DownloadResult.Progress(progressPercent))
+                                emit(MapDownloadResult.Progress(progressPercent))
                             }
                         }
                     }
                 }
             }
-            emit(DownloadResult.Success)
+            emit(MapDownloadResult.Success)
         } catch (e: Exception) {
-            emit(DownloadResult.Error(e.message ?: "Unknown error"))
+            emit(MapDownloadResult.Error(e.message ?: "Unknown error"))
         }
     }
 }

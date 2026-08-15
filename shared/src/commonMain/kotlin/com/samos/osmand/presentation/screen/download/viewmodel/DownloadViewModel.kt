@@ -23,7 +23,6 @@ class DownloadViewModel(
                 usedMemoryProgress = freeSpace.second,
             )
         }
-
     }
 
     override fun handleIntent(intent: DownloadIntent) = when (intent) {
