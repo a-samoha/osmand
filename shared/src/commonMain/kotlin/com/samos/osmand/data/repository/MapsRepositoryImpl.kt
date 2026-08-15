@@ -67,7 +67,13 @@ class MapRepositoryImpl(
                             if (progressPercent != lastSentPercent) {
                                 lastSentPercent = progressPercent
                                 emit(MapDownloadResult.Progress(progressPercent))
+                                println("Завантаження: $progressPercent%")
                             }
+                        } else {
+                            // If the server didn't send Content-Length, we can't calculate the percentage
+                            // In this case, we simply log the downloaded volume in megabytes
+                            val mbDownloaded = totalBytesDownloaded / (1024 * 1024)
+                            println("Downloaded: $mbDownloaded MB (Total size unknown)")
                         }
                     }
                 }

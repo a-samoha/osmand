@@ -5,5 +5,12 @@ import com.samos.osmand.presentation.mvi.MviIntent
 sealed interface DownloadIntent : MviIntent {
 
     object NavigateBack : DownloadIntent
-    object OnCategoryClick : DownloadIntent
+
+    data class OnDownloadMapClick(
+        val fileName: String,
+    ) : DownloadIntent
+
+    data class OnDeleteMapClick(
+        val fileName: String,
+    ) : DownloadIntent
 }

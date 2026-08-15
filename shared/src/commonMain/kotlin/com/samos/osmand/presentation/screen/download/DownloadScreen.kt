@@ -30,9 +30,9 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.samos.osmand.presentation.base.component.TopAppBar
 import com.samos.osmand.presentation.base.noRippleClickable
 import com.samos.osmand.presentation.screen.download.viewmodel.DownloadIntent
-import com.samos.osmand.presentation.screen.download.viewmodel.DownloadItemModel
 import com.samos.osmand.presentation.screen.download.viewmodel.DownloadState
 import com.samos.osmand.presentation.screen.download.viewmodel.DownloadViewModel
+import com.samos.osmand.presentation.screen.download.viewmodel.MapDownloadItemModel
 import org.jetbrains.compose.resources.painterResource
 import org.koin.compose.viewmodel.koinViewModel
 import osmand.shared.generated.resources.Res
@@ -48,7 +48,20 @@ fun DownloadScreen(
     DownloadScreenContent(
         state = state,
         onNavigationIconClick = { viewModel.handleIntent(DownloadIntent.NavigateBack) },
-        onCategoryClick = { viewModel.handleIntent(DownloadIntent.OnCategoryClick) },
+        onDownloadMapClick = { fileName ->
+            viewModel.handleIntent(
+                DownloadIntent.OnDownloadMapClick(
+                    fileName
+                )
+            )
+        },
+        onDeleteMapClick = { fileName ->
+            viewModel.handleIntent(
+                DownloadIntent.OnDeleteMapClick(
+                    fileName
+                )
+            )
+        },
     )
 }
 
@@ -56,7 +69,8 @@ fun DownloadScreen(
 fun DownloadScreenContent(
     state: DownloadState,
     onNavigationIconClick: () -> Unit = {},
-    onCategoryClick: () -> Unit = {},
+    onDownloadMapClick: (String) -> Unit = {},
+    onDeleteMapClick: (String) -> Unit = {},
 ) {
     Scaffold(
         modifier = Modifier.fillMaxSize(),
@@ -105,7 +119,8 @@ fun DownloadScreenContent(
                 ) { item ->
                     DownloadItemRow(
                         item = item,
-                        onCategoryClick = onCategoryClick,
+                        onDownloadMapClick = onDownloadMapClick,
+                        onDeleteMapClick = onDeleteMapClick,
                     )
                 }
             }
@@ -203,12 +218,14 @@ fun CustomSpacer(
 
 @Composable
 private fun DownloadItemRow(
-    item: DownloadItemModel,
-    onCategoryClick: () -> Unit = {},
+    item: MapDownloadItemModel,
+    onDownloadMapClick: (String) -> Unit = {},
+    onDeleteMapClick: (String) -> Unit = {},
 ) {
     Row(
         modifier = Modifier.fillMaxWidth()
-            .padding(16.dp),
+            .padding(16.dp)
+            .noRippleClickable { onDeleteMapClick.invoke(item.id) }, // "Denmark_capital-region_europe_2.obf.zip"
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Icon(
@@ -218,17 +235,17 @@ private fun DownloadItemRow(
             tint = MaterialTheme.colorScheme.onSurface
         )
         Text(
-            text = item.title,
-            modifier = Modifier.weight(1f).padding(start = 24.dp),
+            text = item.fileName,
+            modifier = Modifier.weight(1f).padding(horizontal = 24.dp),
             color = MaterialTheme.colorScheme.onBackground,
             overflow = TextOverflow.Ellipsis,
-            minLines = 1,
+            maxLines = 1,
             style = MaterialTheme.typography.bodyMedium,
         )
         Icon(
             modifier = Modifier
                 .wrapContentSize()
-                .noRippleClickable { onCategoryClick.invoke() },
+                .noRippleClickable { onDownloadMapClick.invoke(item.id) }, // "Denmark_capital-region_europe_2.obf.zip"
             painter = painterResource(Res.drawable.ic_download),
             contentDescription = "Download",
             tint = MaterialTheme.colorScheme.onSurface

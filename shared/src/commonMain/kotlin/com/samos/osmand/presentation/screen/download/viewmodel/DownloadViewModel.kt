@@ -1,17 +1,16 @@
 package com.samos.osmand.presentation.screen.download.viewmodel
 
 import androidx.lifecycle.viewModelScope
-import com.samos.osmand.domain.repository.MapRepository
+import com.samos.osmand.domain.manager.MapDownloadManager
 import com.samos.osmand.domain.repository.MemoryRepository
 import com.samos.osmand.presentation.mvi.MviEffect
 import com.samos.osmand.presentation.mvi.MviViewModel
 import com.samos.osmand.presentation.navigation.router.ComposeRouter
-import kotlinx.coroutines.flow.launchIn
-import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.launch
 
 class DownloadViewModel(
     memoryRepository: MemoryRepository,
-    private val mapRepository: MapRepository,
+    private val downloadManager: MapDownloadManager,
     private val router: ComposeRouter,
 ) : MviViewModel<DownloadState, DownloadIntent, MviEffect>(DownloadState()) {
 
@@ -23,16 +22,47 @@ class DownloadViewModel(
                 usedMemoryProgress = freeSpace.second,
             )
         }
+
+        // 💡 2. Subscribe to the central DownloadManager states flow to populate items reactively
+        viewModelScope.launch {
+            downloadManager.downloadStates.collect { statesMap ->
+                // Map the Map<String, DownloadStatus> into your List<MapDownloadItemModel>
+                val mappedItems = statesMap.map { (fileName, status) ->
+                    MapDownloadItemModel(
+                        id = fileName,
+                        fileName = fileName,
+                        status = status
+                    )
+                }
+
+                updateState { currentState ->
+                    currentState.copy(
+                        items = mappedItems,
+                        isLoading = mappedItems.isEmpty() // Optional: true until XML finishes parsing
+                    )
+                }
+            }
+        }
     }
 
     override fun handleIntent(intent: DownloadIntent) = when (intent) {
-        DownloadIntent.OnCategoryClick -> {
-            val job = mapRepository.downloadMapFile("Denmark_capital-region_europe_2.obf.zip")
-                .onEach { result ->
-                    println("Test result $result")
-                }.launchIn(viewModelScope)
+        DownloadIntent.NavigateBack -> {
+            router.navigateBack()
         }
-        DownloadIntent.NavigateBack -> {}
+        is DownloadIntent.OnDownloadMapClick -> {
+            startMapDownload(intent.fileName, true)
+        }
+        is DownloadIntent.OnDeleteMapClick -> {
+            deleteMap(intent.fileName)
+        }
+    }
+
+    fun startMapDownload(fileName: String, forceOverwrite: Boolean = false) {
+        downloadManager.enqueueDownload(fileName, forceOverwrite)
+    }
+
+    fun deleteMap(fileName: String) {
+        downloadManager.deleteMapFile(fileName)
     }
 
     private fun formatBytes(bytes: Long): String {

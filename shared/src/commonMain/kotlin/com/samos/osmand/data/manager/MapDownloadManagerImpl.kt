@@ -18,12 +18,11 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.io.files.Path
 import kotlinx.io.files.SystemFileSystem
 import kotlinx.io.files.SystemTemporaryDirectory
-import nl.adaptivity.xmlutil.XmlDeclMode
 import nl.adaptivity.xmlutil.serialization.XML
 import osmand.shared.generated.resources.Res
 
 class MapDownloadManagerImpl(
-    private val repository: MapRepository
+    private val repository: MapRepository,
 ) : MapDownloadManager {
 
     private val downloadScope = CoroutineScope(Dispatchers.IO.limitedParallelism(1))
@@ -41,7 +40,7 @@ class MapDownloadManagerImpl(
      * 2. ADDING TO QUEUE: Sequential loading via Mutex
      */
     override fun enqueueDownload(fileName: String, forceOverwrite: Boolean) {
-        // Tell the UI that the file has been queued.
+        // Update specific item state to 'InQueue' without changing other maps
         _downloadStates.update { it + (fileName to DownloadStatus.InQueue) }
 
         downloadScope.launch {
@@ -63,7 +62,7 @@ class MapDownloadManagerImpl(
                             _downloadStates.update { it + (fileName to DownloadStatus.Error(result.message)) }
                         }
                         is MapDownloadResult.FileAlreadyExists -> {
-                            // Логіка показу діалогу (якщо обробляється через окрему подію/колбек)
+                            // UI overwrite dialog handling logic triggers here
                         }
                     }
                 }
@@ -82,17 +81,13 @@ class MapDownloadManagerImpl(
                 if (SystemFileSystem.exists(filePath)) {
                     // Delete the file using kotlinx-io
                     SystemFileSystem.delete(filePath)
-                    println("Файл успішно видалено з диска: $fileName")
+                    println("File successfully deleted from storage: $fileName")
                 }
-
-                _downloadStates.update { currentMap ->
-                    currentMap - fileName
-                }
+                // 💡 Reset state back to 'NotDownloaded' instead of removing from the map completely
+                _downloadStates.update { it + (fileName to DownloadStatus.NotDownloaded) }
             } catch (e: Exception) {
-                println("Помилка при видаленні файлу $fileName: ${e.message}")
-                _downloadStates.update {
-                    it + (fileName to DownloadStatus.Error("Не вдалося видалити: ${e.message}"))
-                }
+                println("Failed to delete file $fileName: ${e.message}")
+                _downloadStates.update { it + (fileName to DownloadStatus.Error("Deletion failed: ${e.message}")) }
             }
         }
     }
@@ -104,23 +99,28 @@ class MapDownloadManagerImpl(
         downloadScope.launch {
             try {
                 // 1. Parse map names from the XML asset file
-                val allAppMaps = parseMapNamesFromXml()
-                println("Test allAppMaps: $allAppMaps")
+                val parsedMaps = parseMapNamesFromXml()
+                println("Test allAppMaps: $parsedMaps")
+
+                val initialStates =
+                    parsedMaps.associateTo(mutableMapOf<String, DownloadStatus>()) { fileName ->
+                        fileName to DownloadStatus.NotDownloaded
+                    }
 
                 // 2. Check physical disk storage for existing files
                 if (SystemFileSystem.exists(downloadsFolder)) {
-                    val localMapStates = mutableMapOf<String, DownloadStatus>()
-
-                    for (fileName in allAppMaps) {
+                    for (fileName in parsedMaps) {
                         val filePath = Path(downloadsFolder, fileName)
                         if (SystemFileSystem.exists(filePath)) {
                             // Mark file as fully downloaded and ready offline
-                            localMapStates[fileName] = DownloadStatus.Downloaded
+                            initialStates[fileName] = DownloadStatus.Downloaded
                         }
                     }
-                    // Update StateFlow with initial offline map data
-                    _downloadStates.value = localMapStates
                 }
+
+                // Update StateFlow with initial offline map data
+                _downloadStates.value = initialStates
+                println("Log XML: Successfully published ${initialStates.size} maps to StateFlow")
             } catch (e: Exception) {
                 println("Critical error during local downloads scanning: ${e.message}")
             }
@@ -133,22 +133,21 @@ class MapDownloadManagerImpl(
             val xmlBytes = Res.readBytes("files/regions.xml")
             val rawXml = xmlBytes.decodeToString()
 
-            // 💡 FIXED: Correct DSL builder constructor for XMLUtil 0.90+
-            val xmlParser = XML {
-                // Configure XML declaration mode inside the builder scope
-                xmlDeclMode = XmlDeclMode.None
-
-                // Basic configuration parameters for parsing stability
-                indent = 0
-            }
+            // No configuration needed anymore because all fields are explicitly declared in the data class
+            val xmlParser = XML {}
 
             // Deserialize XML into Kotlin tree structures
             val container = xmlParser.decodeFromString(RegionsListXml.serializer(), rawXml)
+            println("Log XML: Successfully deserialized root regions")
 
             // Flatten the recursive tree into a clean list of file names (defaulting to 'europe' suffix)
-            extractMapFileNames(container.regions, parentSuffix = "europe")
+            val generatedNames = extractMapFileNames(container.regions, parentSuffix = "europe")
+            println("Log XML: Extraction finished. Generated ${generatedNames.size} total map names")
+
+            generatedNames
         } catch (e: Exception) {
-            println("XML serialization parsing failed: ${e.message}")
+            println("Log XML CRITICAL ERROR: ${e.message}")
+            e.printStackTrace()
             emptyList()
         }
     }
@@ -158,10 +157,17 @@ class MapDownloadManagerImpl(
         parentPrefix: String? = null,
         parentSuffix: String? = null
     ): List<String> {
+        // Internal helper function to ensure the very first letter of a string is capitalized
+        fun String.capitalizeFirstLetter(): String {
+            if (this.isEmpty()) return this
+            return this.substring(0, 1).lowercase()
+                .replaceFirstChar { it.uppercase() } + this.substring(1)
+        }
+
         val fileNames = mutableListOf<String>()
 
         for (node in nodes) {
-            // Resolve prefix rule: if prefix is "$name", use current node name
+            // Resolve prefix rule from parent hierarchy
             val currentPrefix = when {
                 node.inner_download_prefix == "\$name" -> node.name
                 node.inner_download_prefix != null -> node.inner_download_prefix
@@ -172,19 +178,27 @@ class MapDownloadManagerImpl(
             val currentSuffix = node.inner_download_suffix ?: parentSuffix
 
             // If the node represents an actual map asset, construct its name
-            if (node.type == "map" && node.name != null) {
+            val isMap =
+                node.map == "yes" || (node.type == "map" || (node.type == null && node.map != "no"))
+
+            if (isMap && node.name != null) {
                 val baseName = StringBuilder()
 
+                // 1. Build the core name string using prefix and suffix
                 if (!currentPrefix.isNullOrEmpty()) {
                     baseName.append("${currentPrefix}_")
+                    baseName.append(node.name)
+                } else {
+                    baseName.append(node.name)
                 }
-                baseName.append(node.name)
+
                 if (!currentSuffix.isNullOrEmpty()) {
                     baseName.append("_$currentSuffix")
                 }
-                baseName.append(".obf.zip")
 
-                fileNames.add(baseName.toString())
+                val finalFileName = "${baseName.toString().capitalizeFirstLetter()}_2.obf.zip"
+
+                fileNames.add(finalFileName)
             }
 
             // Recursively traverse deeper into subregions
