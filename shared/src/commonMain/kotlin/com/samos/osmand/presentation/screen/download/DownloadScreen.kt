@@ -9,7 +9,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Icon
@@ -34,8 +33,10 @@ import com.samos.osmand.presentation.screen.download.viewmodel.DownloadState
 import com.samos.osmand.presentation.screen.download.viewmodel.DownloadViewModel
 import com.samos.osmand.presentation.screen.download.viewmodel.MapDownloadItemModel
 import org.jetbrains.compose.resources.painterResource
+import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.viewmodel.koinViewModel
 import osmand.shared.generated.resources.Res
+import osmand.shared.generated.resources.download_maps
 import osmand.shared.generated.resources.ic_download
 import osmand.shared.generated.resources.ic_map
 
@@ -50,6 +51,9 @@ fun DownloadScreen(
         onNavigationIconClick = {
             viewModel.handleIntent(DownloadIntent.NavigateBack)
         },
+        onMapDownloadItemClick = { itemId ->
+            viewModel.handleIntent(DownloadIntent.OnMapDownloadItemClick(itemId))
+        },
         onDownloadMapClick = { itemId ->
             viewModel.handleIntent(DownloadIntent.OnDownloadMapClick(itemId))
         },
@@ -63,6 +67,7 @@ fun DownloadScreen(
 fun DownloadScreenContent(
     state: DownloadState,
     onNavigationIconClick: () -> Unit = {},
+    onMapDownloadItemClick: (String) -> Unit = {},
     onDownloadMapClick: (String) -> Unit = {},
     onDeleteMapClick: (String) -> Unit = {},
 ) {
@@ -70,7 +75,10 @@ fun DownloadScreenContent(
         modifier = Modifier.fillMaxSize(),
         topBar = {
             TopAppBar(
-                title = buildAnnotatedString { append("Download Maps") },
+                title = buildAnnotatedString {
+                    append(state.title ?: stringResource(Res.string.download_maps))
+                },
+                hasNavigationIcon = state.title != null,
                 onNavigationIconClick = onNavigationIconClick,
             )
         },
@@ -83,36 +91,28 @@ fun DownloadScreenContent(
                     bottom = paddingValues.calculateBottomPadding(),
                 ),
         ) {
-            DeviceMemoryBar(
-                usableMemoryAmount = state.usableMemory,
-                usedMemoryProgress = state.usedMemoryProgress,
-                modifier = Modifier.fillMaxWidth(),
-            )
+            state.usableMemory?.let {
+                DeviceMemoryBar(
+                    usableMemoryAmount = state.usableMemory,
+                    usedMemoryProgress = state.usedMemoryProgress,
+                    modifier = Modifier.fillMaxWidth(),
+                )
 
-            CustomSpacer()
+                CustomSpacer()
+            }
 
             LazyColumn(
                 modifier = Modifier.fillMaxWidth()
                     .weight(1f),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                stickyHeader {
-                    Text(
-                        text = "Europe",
-                        modifier = Modifier
-                            .padding(start = 20.dp, top = 16.dp),
-                        color = MaterialTheme.colorScheme.onBackground,
-                        overflow = TextOverflow.Ellipsis,
-                        minLines = 1,
-                        style = MaterialTheme.typography.labelMedium,
-                    )
-                }
                 items(
                     items = state.items,
                     key = { item -> item.id }
                 ) { item ->
                     DownloadItemRow(
                         item = item,
+                        onMapDownloadItemClick = onMapDownloadItemClick,
                         onDownloadMapClick = onDownloadMapClick,
                         onDeleteMapClick = onDeleteMapClick,
                     )
@@ -213,19 +213,24 @@ fun CustomSpacer(
 @Composable
 private fun DownloadItemRow(
     item: MapDownloadItemModel,
+    onMapDownloadItemClick: (String) -> Unit = {},
     onDownloadMapClick: (String) -> Unit = {},
     onDeleteMapClick: (String) -> Unit = {},
 ) {
     Row(
         modifier = Modifier.fillMaxWidth()
             .padding(16.dp)
-            .noRippleClickable { onDeleteMapClick.invoke(item.id) }, // "Denmark_capital-region_europe_2.obf.zip"
+            .noRippleClickable {
+                if (item.isContainer) onMapDownloadItemClick.invoke(item.id)
+            },
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Icon(
             painter = painterResource(Res.drawable.ic_map),
             contentDescription = "Map",
-            modifier = Modifier.padding(start = 4.dp),
+            modifier = Modifier
+                .noRippleClickable { onDeleteMapClick.invoke(item.id) }
+                .padding(start = 4.dp),
             tint = MaterialTheme.colorScheme.onSurface
         )
         Text(
@@ -238,11 +243,10 @@ private fun DownloadItemRow(
         )
         if (!item.isContainer) {
             Icon(
-                modifier = Modifier
-                    .wrapContentSize()
-                    .noRippleClickable { onDownloadMapClick.invoke(item.id) }, // "Denmark_capital-region_europe_2.obf.zip"
                 painter = painterResource(Res.drawable.ic_download),
                 contentDescription = "Download",
+                modifier = Modifier
+                    .noRippleClickable { onDownloadMapClick.invoke(item.id) }, // e.g.: "Denmark_capital-region_europe_2.obf.zip"
                 tint = MaterialTheme.colorScheme.onSurface
             )
         }

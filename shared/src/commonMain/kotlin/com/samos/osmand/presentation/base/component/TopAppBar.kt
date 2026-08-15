@@ -41,6 +41,7 @@ fun TopAppBar(
     containerColor: Color = MaterialTheme.colorScheme.primary,
     titleContentColor: Color = MaterialTheme.colorScheme.onPrimary,
     hasShadow: Boolean = true,
+    hasNavigationIcon: Boolean = false,
     onNavigationIconClick: () -> Unit,
 ) {
     TopAppBarContainer(
@@ -69,15 +70,17 @@ fun TopAppBar(
                     )
                 },
                 navigationIcon = {
-                    Icon(
-                        modifier = Modifier
-                            .noRippleClickable { onNavigationIconClick() }
-                            .padding(8.dp)
-                            .testTag(tag),
-                        painter = painterResource(Res.drawable.ic_back_arrow),
-                        contentDescription = "Navigate Back",
-                        tint = MaterialTheme.colorScheme.onPrimary,
-                    )
+                    if (hasNavigationIcon) {
+                        Icon(
+                            modifier = Modifier
+                                .noRippleClickable { onNavigationIconClick() }
+                                .padding(8.dp)
+                                .testTag(tag),
+                            painter = painterResource(Res.drawable.ic_back_arrow),
+                            contentDescription = "Navigate Back",
+                            tint = MaterialTheme.colorScheme.onPrimary,
+                        )
+                    }
                 },
             )
         },

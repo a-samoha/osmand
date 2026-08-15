@@ -8,5 +8,5 @@ sealed interface NavigationRoute {
     data object Splash : NavigationRoute
 
     @Serializable
-    data class Download(val category: String? = null) : NavigationRoute
+    data class Download(val parentId: String? = null) : NavigationRoute
 }

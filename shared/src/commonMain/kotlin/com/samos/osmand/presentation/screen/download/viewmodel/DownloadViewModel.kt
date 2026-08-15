@@ -1,48 +1,69 @@
 package com.samos.osmand.presentation.screen.download.viewmodel
 
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.viewModelScope
+import androidx.navigation.toRoute
 import com.samos.osmand.domain.manager.MapDownloadManager
+import com.samos.osmand.domain.model.DownloadStatus
 import com.samos.osmand.domain.model.xml.RegionNode
 import com.samos.osmand.domain.repository.MemoryRepository
 import com.samos.osmand.presentation.mvi.MviEffect
 import com.samos.osmand.presentation.mvi.MviViewModel
 import com.samos.osmand.presentation.navigation.router.ComposeRouter
+import com.samos.osmand.presentation.navigation.router.NavigationRoute
 import kotlinx.coroutines.launch
 
 class DownloadViewModel(
+    savedStateHandle: SavedStateHandle,
     memoryRepository: MemoryRepository,
     private val downloadManager: MapDownloadManager,
     private val router: ComposeRouter,
 ) : MviViewModel<DownloadState, DownloadIntent, MviEffect>(DownloadState()) {
 
     init {
-        val freeSpace = memoryRepository.getFreeSpaceBytes()
-        updateState {
-            it.copy(
-                usableMemory = formatBytes(freeSpace.first),
-                usedMemoryProgress = freeSpace.second,
-            )
+        val route = savedStateHandle.toRoute<NavigationRoute.Download>()
+        val parentId = route.parentId
+
+        if (parentId == null) {
+            val freeSpace = memoryRepository.getFreeSpaceBytes()
+            updateState {
+                it.copy(
+                    usableMemory = formatBytes(freeSpace.first),
+                    usedMemoryProgress = freeSpace.second,
+                )
+            }
         }
 
         // 💡 2. Subscribe to the central DownloadManager states flow to populate items reactively
         viewModelScope.launch {
             downloadManager.downloadStates.collect { statesMap ->
-                // Map the Map<String, DownloadStatus> into your List<MapDownloadItemModel>
-                val mappedItems = statesMap.map { (node, status) ->
+
+                // FILTER LOGIC based on parentId
+                val filteredNodes = if (parentId == null) {
+                    statesMap.keys.filter { it.type == "continent" || (it.subRegions.isNotEmpty() && it.parent_id == null) }
+                } else {
+                    val parentNode = statesMap.keys.firstOrNull { it.name == parentId }
+                    parentNode?.subRegions ?: emptyList()
+                }
+
+                // Map only the filtered business nodes into your UI model list
+                val mappedItems = filteredNodes.map { node ->
+                    val currentStatus = statesMap[node] ?: DownloadStatus.NotDownloaded
                     MapDownloadItemModel(
                         id = node.name ?: "",
-                        displayName = node.name?.replace("-", " ")?.replaceFirstChar { it.uppercase() } ?: "",
-                        status = status,
-                        // 💡 If it has sub-regions, it's a container (like Germany), not a downloadable file
+                        displayName = node.name?.replace("-", " ")
+                            ?.replaceFirstChar { it.uppercase() } ?: "",
+                        status = currentStatus,
                         isContainer = node.subRegions.isNotEmpty(),
-                        childRegions = node.subRegions
                     )
                 }.sortedBy { it.displayName }
 
                 updateState { currentState ->
                     currentState.copy(
-                        items = mappedItems,
-                        isLoading = mappedItems.isEmpty() // Optional: true until XML finishes parsing
+                        title = parentId?.replace("-", " ")
+                            ?.replaceFirstChar { it.uppercase() },
+                        isLoading = mappedItems.isEmpty(), // Optional: true until XML finishes parsing
+                        items = mappedItems
                     )
                 }
             }
@@ -52,6 +73,9 @@ class DownloadViewModel(
     override fun handleIntent(intent: DownloadIntent) = when (intent) {
         DownloadIntent.NavigateBack -> {
             router.navigateBack()
+        }
+        is DownloadIntent.OnMapDownloadItemClick -> {
+            router.navigateTo(NavigationRoute.Download(intent.mapId))
         }
         is DownloadIntent.OnDownloadMapClick -> {
             val node = findNodeById(intent.mapId)
@@ -85,7 +109,7 @@ class DownloadViewModel(
         downloadManager.enqueueDownload(node, forceOverwrite)
     }
 
-    fun deleteMap(node: RegionNode,) {
+    fun deleteMap(node: RegionNode) {
         downloadManager.deleteMapFile(node)
     }
 
