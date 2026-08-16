@@ -10,6 +10,7 @@ sealed interface DownloadEffect : MviEffect {
 }
 
 enum class ToastType {
+    NoInternetConnection,
     OnMapDownloaded,
     OnMapDeleted;
 }

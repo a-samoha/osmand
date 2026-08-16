@@ -4,4 +4,5 @@
     <string name="download_maps">Download Maps</string>
     <string name="download_complete">Download Complete</string>
     <string name="successfully_deleted">Successfully Deleted</string>
+    <string name="no_internet_connection">No internet connection available</string>
 </resources>

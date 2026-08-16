@@ -1,6 +1,6 @@
 package com.samos.osmand.data.manager
 
-import com.samos.osmand.domain.manager.MapDownloadManager
+import com.samos.osmand.domain.network.MapDownloadManager
 import com.samos.osmand.domain.model.DownloadStatus
 import com.samos.osmand.domain.model.MapDownloadResult
 import com.samos.osmand.domain.model.xml.RegionNode
@@ -64,10 +64,19 @@ class MapDownloadManagerImpl(
                                 _downloadStates.update { it + (node to DownloadStatus.Downloaded) }
                             }
                             is MapDownloadResult.Error -> {
-                                _downloadStates.update { it + (node to DownloadStatus.Error(result.message)) }
+                                val errorMessage =
+                                    if (result.message.contains("UnknownHostException") ||
+                                        result.message.contains("ConnectException")
+                                    ) {
+                                        "No internet connection. Please check your network."
+                                    } else {
+                                        result.message
+                                    }
+                                _downloadStates.update {
+                                    it + (node to DownloadStatus.Error(errorMessage))
+                                }
                             }
-                            is MapDownloadResult.FileAlreadyExists -> { /* Dialog handling */
-                            }
+                            is MapDownloadResult.FileAlreadyExists -> {}
                         }
                     }
                 }

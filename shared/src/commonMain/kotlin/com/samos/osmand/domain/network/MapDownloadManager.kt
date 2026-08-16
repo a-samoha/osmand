@@ -1,4 +1,4 @@
-package com.samos.osmand.domain.manager
+package com.samos.osmand.domain.network
 
 import com.samos.osmand.domain.model.DownloadStatus
 import com.samos.osmand.domain.model.xml.RegionNode

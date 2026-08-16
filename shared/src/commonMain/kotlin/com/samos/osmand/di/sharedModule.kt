@@ -2,7 +2,7 @@ package com.samos.osmand.di
 
 import com.samos.osmand.data.manager.MapDownloadManagerImpl
 import com.samos.osmand.data.repository.createMemoryRepository
-import com.samos.osmand.domain.manager.MapDownloadManager
+import com.samos.osmand.domain.network.MapDownloadManager
 import com.samos.osmand.domain.repository.MemoryRepository
 import com.samos.osmand.presentation.navigation.router.ComposeRouter
 import com.samos.osmand.presentation.navigation.router.ComposeRouterImpl

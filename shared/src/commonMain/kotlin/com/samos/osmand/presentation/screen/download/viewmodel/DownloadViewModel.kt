@@ -3,25 +3,26 @@ package com.samos.osmand.presentation.screen.download.viewmodel
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.viewModelScope
 import androidx.navigation.toRoute
-import com.samos.osmand.domain.manager.MapDownloadManager
 import com.samos.osmand.domain.model.DownloadStatus
 import com.samos.osmand.domain.model.xml.RegionNode
+import com.samos.osmand.domain.network.MapDownloadManager
+import com.samos.osmand.domain.network.NetworkMonitor
 import com.samos.osmand.domain.repository.MemoryRepository
 import com.samos.osmand.presentation.mvi.MviViewModel
 import com.samos.osmand.presentation.navigation.router.ComposeRouter
-import com.samos.osmand.presentation.navigation.router.NavigationRoute
 import com.samos.osmand.presentation.navigation.router.NavigationRoute.Download
 import kotlinx.coroutines.launch
 
 class DownloadViewModel(
     savedStateHandle: SavedStateHandle,
     memoryRepository: MemoryRepository,
+    private val networkMonitor: NetworkMonitor,
     private val downloadManager: MapDownloadManager,
     private val router: ComposeRouter,
 ) : MviViewModel<DownloadState, DownloadIntent, DownloadEffect>(DownloadState()) {
 
     init {
-        val route = savedStateHandle.toRoute<NavigationRoute.Download>()
+        val route = savedStateHandle.toRoute<Download>()
         val parentId = route.parentId
 
         if (parentId == null) {
@@ -62,7 +63,7 @@ class DownloadViewModel(
                     currentState.copy(
                         title = parentId?.replace("-", " ")
                             ?.replaceFirstChar { it.uppercase() },
-                        isLoading = mappedItems.isEmpty(), // Optional: true until XML finishes parsing
+                        isLoading = mappedItems.isEmpty(), // Optional: true until regions.xml finishes parsing
                         items = mappedItems
                     )
                 }
@@ -70,44 +71,51 @@ class DownloadViewModel(
         }
     }
 
-    override fun handleIntent(intent: DownloadIntent) = when (intent) {
-        DownloadIntent.NavigateBack -> {
-            router.navigateBack()
-        }
-        is DownloadIntent.OnMapDownloadItemClick -> {
-            router.navigateTo(Download(intent.mapId))
-        }
-        is DownloadIntent.OnDownloadMapClick -> {
-            val node = findNodeById(intent.mapId)
-            if (node != null) {
-                startMapDownload(node, true)
-            } else {
-                println("Log MVI ERROR: Could not find RegionNode for download with ID: ${intent.mapId}")
+    override fun handleIntent(intent: DownloadIntent) {
+        when (intent) {
+            DownloadIntent.NavigateBack -> {
+                router.navigateBack()
             }
-        }
-        is DownloadIntent.OnCancelDownloadClick -> {
-            val node = findNodeById(intent.mapId)
-            if (node != null) {
-                cancelMapDownload(node)
-            } else {
-                println("Log MVI ERROR: Could not find RegionNode for cancel downloading with ID: ${intent.mapId}")
+            is DownloadIntent.OnMapDownloadItemClick -> {
+                router.navigateTo(Download(intent.mapId))
             }
-        }
-        is DownloadIntent.OnDeleteMapClick -> {
-            updateState { it.copy(mapIdToDelete = intent.mapId) }
-        }
-        is DownloadIntent.OnConfirmDeletiuon -> {
-            val node = findNodeById(intent.mapId)
-            if (node != null) {
-                deleteMap(node)
-            } else {
-                println("Log MVI ERROR: Could not find RegionNode for deletion with ID: ${intent.mapId}")
+            is DownloadIntent.OnDownloadMapClick -> {
+                if (!networkMonitor.isOnline) {
+                    sendEffect(DownloadEffect.ShowToast(ToastType.NoInternetConnection))
+                    return
+                }
+
+                val node = findNodeById(intent.mapId)
+                if (node != null) {
+                    startMapDownload(node, true)
+                } else {
+                    println("Log MVI ERROR: Could not find RegionNode for download with ID: ${intent.mapId}")
+                }
             }
-            updateState { it.copy(mapIdToDelete = null) }
-            sendEffect(DownloadEffect.ShowToast(ToastType.OnMapDeleted))
-        }
-        DownloadIntent.OnCancelMapDeletion -> {
-            updateState { it.copy(mapIdToDelete = null) }
+            is DownloadIntent.OnCancelDownloadClick -> {
+                val node = findNodeById(intent.mapId)
+                if (node != null) {
+                    cancelMapDownload(node)
+                } else {
+                    println("Log MVI ERROR: Could not find RegionNode for cancel downloading with ID: ${intent.mapId}")
+                }
+            }
+            is DownloadIntent.OnDeleteMapClick -> {
+                updateState { it.copy(mapIdToDelete = intent.mapId) }
+            }
+            is DownloadIntent.OnConfirmDeletiuon -> {
+                val node = findNodeById(intent.mapId)
+                if (node != null) {
+                    deleteMap(node)
+                } else {
+                    println("Log MVI ERROR: Could not find RegionNode for deletion with ID: ${intent.mapId}")
+                }
+                updateState { it.copy(mapIdToDelete = null) }
+                sendEffect(DownloadEffect.ShowToast(ToastType.OnMapDeleted))
+            }
+            DownloadIntent.OnCancelMapDeletion -> {
+                updateState { it.copy(mapIdToDelete = null) }
+            }
         }
     }
 

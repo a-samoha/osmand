@@ -1,6 +1,8 @@
 package com.samos.osmand.di
 
 import com.samos.osmand.data.repository.AndroidMemoryRepository
+import com.samos.osmand.domain.network.AndroidNetworkMonitor
+import com.samos.osmand.domain.network.NetworkMonitor
 import com.samos.osmand.domain.repository.MemoryRepository
 import com.samos.osmand.presentation.base.ToastManager
 import com.samos.osmand.presentation.base.ToastManagerImplAndroid
@@ -12,4 +14,5 @@ val androidModule = module {
     single<MemoryRepository> { AndroidMemoryRepository() }
 
     factoryOf(::ToastManagerImplAndroid) bind ToastManager::class
+    factoryOf(::AndroidNetworkMonitor) bind NetworkMonitor::class
 }

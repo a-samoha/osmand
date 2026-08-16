@@ -60,6 +60,7 @@ import osmand.shared.generated.resources.ic_cancel
 import osmand.shared.generated.resources.ic_delete
 import osmand.shared.generated.resources.ic_download
 import osmand.shared.generated.resources.ic_map
+import osmand.shared.generated.resources.no_internet_connection
 import osmand.shared.generated.resources.successfully_deleted
 
 @Composable
@@ -77,6 +78,7 @@ fun DownloadScreen(
                     toastResId = when (effect.type) {
                         ToastType.OnMapDownloaded -> Res.string.download_complete
                         ToastType.OnMapDeleted -> Res.string.successfully_deleted
+                        ToastType.NoInternetConnection -> Res.string.no_internet_connection
                     }
                 }
             }
