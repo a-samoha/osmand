@@ -55,9 +55,15 @@ import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.koinInject
 import org.koin.compose.viewmodel.koinViewModel
 import osmand.shared.generated.resources.Res
+import osmand.shared.generated.resources.are_you_sure_you_want_to_delete
+import osmand.shared.generated.resources.cancel
 import osmand.shared.generated.resources.connection_lost
+import osmand.shared.generated.resources.delete
+import osmand.shared.generated.resources.delete_map
+import osmand.shared.generated.resources.device_memory
 import osmand.shared.generated.resources.download_complete
 import osmand.shared.generated.resources.download_maps
+import osmand.shared.generated.resources.free_usable_memory
 import osmand.shared.generated.resources.ic_cancel
 import osmand.shared.generated.resources.ic_delete
 import osmand.shared.generated.resources.ic_download
@@ -111,7 +117,7 @@ fun DownloadScreen(
             viewModel.handleIntent(DownloadIntent.OnCancelMapDeletion)
         },
         onConfirmMapDeletion = { itemId ->
-            viewModel.handleIntent(DownloadIntent.OnConfirmDeletiuon(itemId))
+            viewModel.handleIntent(DownloadIntent.OnConfirmDeletion(itemId))
         },
         onCancelDownloadClick = { itemId ->
             viewModel.handleIntent(DownloadIntent.OnCancelDownloadClick(itemId))
@@ -210,7 +216,7 @@ private fun DeviceMemoryBar(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(
-                text = "Device memory",
+                text = stringResource(Res.string.device_memory),
                 modifier = Modifier.weight(1f),
                 color = MaterialTheme.colorScheme.onBackground,
                 overflow = TextOverflow.Ellipsis,
@@ -219,7 +225,7 @@ private fun DeviceMemoryBar(
             )
             usableMemoryAmount?.let {
                 Text(
-                    text = "Free $usableMemoryAmount",
+                    text = stringResource(Res.string.free_usable_memory, usableMemoryAmount),
                     color = MaterialTheme.colorScheme.onBackground,
                     overflow = TextOverflow.Ellipsis,
                     minLines = 1,
@@ -395,17 +401,20 @@ fun ConfirmMapDeletionAlertDialog(
     onConfirmDeletion: (String) -> Unit
 ) {
     AlertDialog(
-        onDismissRequest = onDismissRequest, //{ onDismissRequest.invoke() },
+        onDismissRequest = onDismissRequest,
         title = {
             Text(
-                text = "Delete Map",
+                text = stringResource(Res.string.delete_map),
                 color = MaterialTheme.colorScheme.onSurface,
                 style = MaterialTheme.typography.bodyMedium,
             )
         },
         text = {
             Text(
-                text = "Are you sure you want to delete\nthe map for $mapDisplayName?\n\nThis action cannot be undone.",
+                text = stringResource(
+                    resource = Res.string.are_you_sure_you_want_to_delete,
+                    mapDisplayName
+                ),
                 color = MaterialTheme.colorScheme.onSurface,
                 style = MaterialTheme.typography.bodyMedium,
             )
@@ -418,7 +427,7 @@ fun ConfirmMapDeletionAlertDialog(
                 colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFF8800))
             ) {
                 Text(
-                    text = "Delete",
+                    text = stringResource(Res.string.delete),
                     color = MaterialTheme.colorScheme.onSurface,
                     style = MaterialTheme.typography.bodyMedium,
                 )
@@ -431,7 +440,7 @@ fun ConfirmMapDeletionAlertDialog(
                 }
             ) {
                 Text(
-                    text = "Cancel",
+                    text = stringResource(Res.string.cancel),
                     color = MaterialTheme.colorScheme.onSurface,
                     style = MaterialTheme.typography.bodyMedium,
                 )

@@ -1,9 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <!-- Key identifier is 'download_maps' -->
+    <string name="hello_osmand">Hello OsmAnd!\nSplash screen…</string>
+    <string name="cancel">Cancel</string>
+    <string name="delete">Delete</string>
+    <string name="device_memory">Device memory</string>
+    <string name="free_usable_memory">Free %1$s</string>
+    <string name="delete_map">Delete Map</string>
     <string name="download_maps">Download Maps</string>
     <string name="download_complete">Download Complete</string>
     <string name="successfully_deleted">Successfully Deleted</string>
     <string name="no_internet_connection">No internet connection available</string>
     <string name="connection_lost">Internet connection lost</string>
+    <string name="are_you_sure_you_want_to_delete">Are you sure you want to delete\nthe map for %1$s?\n\nThis action cannot be undone.</string>
 </resources>

@@ -14,7 +14,7 @@ data class DownloadState(
 
 data class MapDownloadItemModel(
     val id: String,             // fileName
-    val displayName: String,    // Clean name for UI (e.g. "Germany" or "Berlin")
+    val displayName: String,    // Clear name for UI (e.g. "Germany" or "Berlin")
     val status: DownloadStatus,
     val isContainer: Boolean,   // true = open screen, false = download file
 )

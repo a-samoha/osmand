@@ -22,7 +22,7 @@ sealed interface DownloadIntent : MviIntent {
         val mapId: String,
     ) : DownloadIntent
 
-    data class OnConfirmDeletiuon(
+    data class OnConfirmDeletion(
         val mapId: String,
     ) : DownloadIntent
 

@@ -8,7 +8,10 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.viewmodel.koinViewModel
+import osmand.shared.generated.resources.Res
+import osmand.shared.generated.resources.hello_osmand
 
 @Composable
 fun SplashScreen(
@@ -27,7 +30,7 @@ fun SplashScreenContent() {
         contentAlignment = Alignment.Center,
     ) {
         Text(
-            text = "Hello OsmAnd!\nSplash screen...",
+            text = stringResource(Res.string.hello_osmand),
             color = MaterialTheme.colorScheme.onPrimary,
             style = MaterialTheme.typography.labelLarge,
         )

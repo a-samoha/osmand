@@ -114,7 +114,7 @@ class DownloadViewModel(
             is DownloadIntent.OnDeleteMapClick -> {
                 updateState { it.copy(mapIdToDelete = intent.mapId) }
             }
-            is DownloadIntent.OnConfirmDeletiuon -> {
+            is DownloadIntent.OnConfirmDeletion -> {
                 val node = findNodeById(intent.mapId)
                 if (node != null) {
                     deleteMap(node)
