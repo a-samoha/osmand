@@ -7,10 +7,10 @@ import com.samos.osmand.domain.manager.MapDownloadManager
 import com.samos.osmand.domain.model.DownloadStatus
 import com.samos.osmand.domain.model.xml.RegionNode
 import com.samos.osmand.domain.repository.MemoryRepository
-import com.samos.osmand.presentation.mvi.MviEffect
 import com.samos.osmand.presentation.mvi.MviViewModel
 import com.samos.osmand.presentation.navigation.router.ComposeRouter
 import com.samos.osmand.presentation.navigation.router.NavigationRoute
+import com.samos.osmand.presentation.navigation.router.NavigationRoute.Download
 import kotlinx.coroutines.launch
 
 class DownloadViewModel(
@@ -18,7 +18,7 @@ class DownloadViewModel(
     memoryRepository: MemoryRepository,
     private val downloadManager: MapDownloadManager,
     private val router: ComposeRouter,
-) : MviViewModel<DownloadState, DownloadIntent, MviEffect>(DownloadState()) {
+) : MviViewModel<DownloadState, DownloadIntent, DownloadEffect>(DownloadState()) {
 
     init {
         val route = savedStateHandle.toRoute<NavigationRoute.Download>()
@@ -75,7 +75,7 @@ class DownloadViewModel(
             router.navigateBack()
         }
         is DownloadIntent.OnMapDownloadItemClick -> {
-            router.navigateTo(NavigationRoute.Download(intent.mapId))
+            router.navigateTo(Download(intent.mapId))
         }
         is DownloadIntent.OnDownloadMapClick -> {
             val node = findNodeById(intent.mapId)
@@ -94,12 +94,20 @@ class DownloadViewModel(
             }
         }
         is DownloadIntent.OnDeleteMapClick -> {
+            updateState { it.copy(mapIdToDelete = intent.mapId) }
+        }
+        is DownloadIntent.OnConfirmDeletiuon -> {
             val node = findNodeById(intent.mapId)
             if (node != null) {
                 deleteMap(node)
             } else {
                 println("Log MVI ERROR: Could not find RegionNode for deletion with ID: ${intent.mapId}")
             }
+            updateState { it.copy(mapIdToDelete = null) }
+            sendEffect(DownloadEffect.ShowToast(ToastType.OnMapDeleted))
+        }
+        DownloadIntent.OnCancelMapDeletion -> {
+            updateState { it.copy(mapIdToDelete = null) }
         }
     }
 

@@ -3,10 +3,10 @@ package com.samos.osmand.presentation.mvi
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.channels.ReceiveChannel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
@@ -45,7 +45,7 @@ abstract class MviViewModel<S : MviState, in I : MviIntent, E : MviEffect>(
      * - `RequestPermissions(val permissions: List<String>)`
      */
     private val _effect = Channel<E>(Channel.BUFFERED)
-    val effect = _effect.receiveAsFlow()
+    val effect: ReceiveChannel<E> by lazy { _effect }
 
     val currentState: S
         get() = _state.value

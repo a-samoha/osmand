@@ -9,6 +9,7 @@ data class DownloadState(
     val usableMemory: String? = null,
     val usedMemoryProgress: Float = 0f,
     val items: List<MapDownloadItemModel> = emptyList(),
+    val mapIdToDelete: String? = null,
 ) : MviState
 
 data class MapDownloadItemModel(

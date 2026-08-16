@@ -17,3 +17,6 @@ val BackgroundDark = Color(0xFFF0F0F0)
 val OnBackgroundDark = Color(0xFF000000)
 val SurfaceDark = Color(0xFFFFFFF)
 val OnSurfaceDark = Color(0xFF727272)
+
+val MapDownloadedColor = Color(0xFF4CAF50)
+val MapDownloadingProgressColor = Color(0xFF2175F3)

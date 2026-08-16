@@ -12,13 +12,21 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
@@ -29,27 +37,56 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.samos.osmand.domain.model.DownloadStatus
+import com.samos.osmand.presentation.base.ToastManager
 import com.samos.osmand.presentation.base.component.TopAppBar
 import com.samos.osmand.presentation.base.noRippleClickable
+import com.samos.osmand.presentation.screen.download.viewmodel.DownloadEffect
 import com.samos.osmand.presentation.screen.download.viewmodel.DownloadIntent
 import com.samos.osmand.presentation.screen.download.viewmodel.DownloadState
 import com.samos.osmand.presentation.screen.download.viewmodel.DownloadViewModel
 import com.samos.osmand.presentation.screen.download.viewmodel.MapDownloadItemModel
+import com.samos.osmand.presentation.screen.download.viewmodel.ToastType
+import com.samos.osmand.presentation.theme.MapDownloadedColor
+import com.samos.osmand.presentation.theme.MapDownloadingProgressColor
+import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
+import org.koin.compose.koinInject
 import org.koin.compose.viewmodel.koinViewModel
 import osmand.shared.generated.resources.Res
+import osmand.shared.generated.resources.download_complete
 import osmand.shared.generated.resources.download_maps
 import osmand.shared.generated.resources.ic_cancel
 import osmand.shared.generated.resources.ic_delete
 import osmand.shared.generated.resources.ic_download
 import osmand.shared.generated.resources.ic_map
+import osmand.shared.generated.resources.successfully_deleted
 
 @Composable
 fun DownloadScreen(
     viewModel: DownloadViewModel = koinViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val toastManager = koinInject<ToastManager>()
+    var toastResId by remember { mutableStateOf<StringResource?>(null) }
+
+    LaunchedEffect(Unit) {
+        for (effect in viewModel.effect) {
+            when (effect) {
+                is DownloadEffect.ShowToast -> {
+                    toastResId = when (effect.type) {
+                        ToastType.OnMapDownloaded -> Res.string.download_complete
+                        ToastType.OnMapDeleted -> Res.string.successfully_deleted
+                    }
+                }
+            }
+        }
+    }
+    toastResId?.let { resId ->
+        val message = stringResource(resId)
+        toastManager.showToast(message)
+        toastResId = null
+    }
 
     DownloadScreenContent(
         state = state,
@@ -65,6 +102,12 @@ fun DownloadScreen(
         onDeleteMapClick = { itemId ->
             viewModel.handleIntent(DownloadIntent.OnDeleteMapClick(itemId))
         },
+        onCancelMapDeletion = {
+            viewModel.handleIntent(DownloadIntent.OnCancelMapDeletion)
+        },
+        onConfirmMapDeletion = { itemId ->
+            viewModel.handleIntent(DownloadIntent.OnConfirmDeletiuon(itemId))
+        },
         onCancelDownloadClick = { itemId ->
             viewModel.handleIntent(DownloadIntent.OnCancelDownloadClick(itemId))
         },
@@ -78,6 +121,8 @@ fun DownloadScreenContent(
     onMapDownloadItemClick: (String) -> Unit = {},
     onDownloadMapClick: (String) -> Unit = {},
     onDeleteMapClick: (String) -> Unit = {},
+    onCancelMapDeletion: () -> Unit = {},
+    onConfirmMapDeletion: (String) -> Unit = {},
     onCancelDownloadClick: (String) -> Unit = {},
 ) {
     Scaffold(
@@ -131,6 +176,16 @@ fun DownloadScreenContent(
 
             CustomSpacer(showBottomShadow = false)
         }
+    }
+
+    if (state.mapIdToDelete != null) {
+        ConfirmMapDeletionAlertDialog(
+            mapIdToDeleteId = state.mapIdToDelete,
+            mapDisplayName = state.items
+                .firstOrNull { it.id == state.mapIdToDelete }?.displayName ?: state.mapIdToDelete,
+            onDismissRequest = onCancelMapDeletion,
+            onConfirmDeletion = onConfirmMapDeletion,
+        )
     }
 }
 
@@ -236,11 +291,13 @@ private fun DownloadItemRow(
             },
         verticalAlignment = Alignment.CenterVertically,
     ) {
+        val leftIconTint = if (item.status is DownloadStatus.Downloaded) MapDownloadedColor
+        else MaterialTheme.colorScheme.onSurface
         Icon(
             painter = painterResource(Res.drawable.ic_map),
             contentDescription = "Map Icon",
             modifier = Modifier.padding(start = 16.dp),
-            tint = MaterialTheme.colorScheme.onSurface
+            tint = leftIconTint
         )
 
         Column(
@@ -263,8 +320,20 @@ private fun DownloadItemRow(
                         .fillMaxWidth()
                         .padding(top = 4.dp)
                         .height(3.dp),
-                    color = Color(0xFF2175F3),
-                    trackColor = Color(0xFFE5E5E5)
+                    color = MapDownloadingProgressColor,
+                    trackColor = MaterialTheme.colorScheme.background,
+                )
+            }
+
+            if (item.status is DownloadStatus.InQueue) {
+                LinearProgressIndicator(
+                    progress = { 0f },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 4.dp)
+                        .height(3.dp),
+                    color = MapDownloadingProgressColor,
+                    trackColor = MaterialTheme.colorScheme.background,
                 )
             }
         }
@@ -303,4 +372,57 @@ private fun DownloadItemRow(
             }
         }
     }
+}
+
+@Composable
+fun ConfirmMapDeletionAlertDialog(
+    mapIdToDeleteId: String,
+    mapDisplayName: String,
+    onDismissRequest: () -> Unit,
+    onConfirmDeletion: (String) -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismissRequest, //{ onDismissRequest.invoke() },
+        title = {
+            Text(
+                text = "Delete Map",
+                color = MaterialTheme.colorScheme.onSurface,
+                style = MaterialTheme.typography.bodyMedium,
+            )
+        },
+        text = {
+            Text(
+                text = "Are you sure you want to delete\nthe map for $mapDisplayName?\n\nThis action cannot be undone.",
+                color = MaterialTheme.colorScheme.onSurface,
+                style = MaterialTheme.typography.bodyMedium,
+            )
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    onConfirmDeletion(mapIdToDeleteId)
+                },
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFF8800))
+            ) {
+                Text(
+                    text = "Delete",
+                    color = MaterialTheme.colorScheme.onSurface,
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+            }
+        },
+        dismissButton = {
+            TextButton(
+                onClick = {
+                    onDismissRequest()
+                }
+            ) {
+                Text(
+                    text = "Cancel",
+                    color = MaterialTheme.colorScheme.onSurface,
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+            }
+        }
+    )
 }
