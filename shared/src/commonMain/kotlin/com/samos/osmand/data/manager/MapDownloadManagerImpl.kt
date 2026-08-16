@@ -7,6 +7,8 @@ import com.samos.osmand.domain.model.xml.RegionsListXml
 import com.samos.osmand.domain.network.DownloadManagerEffect
 import com.samos.osmand.domain.network.MapDownloadManager
 import com.samos.osmand.domain.repository.MapRepository
+import com.samos.osmand.logger.LOGGER_TAG
+import io.github.aakira.napier.Napier
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
@@ -26,12 +28,14 @@ import nl.adaptivity.xmlutil.XmlDeclMode
 import nl.adaptivity.xmlutil.serialization.XML
 import osmand.shared.generated.resources.Res
 
+private const val downloads = "Downloads"
+
 class MapDownloadManagerImpl(
     private val repository: MapRepository,
 ) : MapDownloadManager {
 
     private val downloadScope = CoroutineScope(Dispatchers.IO.limitedParallelism(1))
-    private val downloadsFolder = Path(SystemTemporaryDirectory, "Downloads")
+    private val downloadsFolder = Path(SystemTemporaryDirectory, downloads)
     private val queueMutex = Mutex() // A mutex guarantees sequential execution
 
     private val _downloadStates = MutableStateFlow<Map<RegionNode, DownloadStatus>>(emptyMap())
@@ -128,7 +132,7 @@ class MapDownloadManagerImpl(
         if (runningJob != null && runningJob.isActive) {
             runningJob.cancel()
             deleteMapFile(node)
-            println("Log Network: Download cancelled by user for node: ${node.name}")
+            Napier.d(tag = LOGGER_TAG) {"Log Network: Download cancelled by user for node: ${node.name}"}
         }
 
         _downloadStates.update { it + (node to DownloadStatus.NotDownloaded) }
@@ -169,9 +173,9 @@ class MapDownloadManagerImpl(
 
                 // Publish the complete map list with initial statuses
                 _downloadStates.value = initialStates
-                println("Log XML: Successfully published ${initialStates.size} maps to StateFlow")
+                Napier.d(tag = LOGGER_TAG) {"Log XML: Successfully published ${initialStates.size} maps to StateFlow"}
             } catch (e: Exception) {
-                println("Critical error during local nodes scanning: ${e.message}")
+                Napier.d(tag = LOGGER_TAG) {"Critical error during local nodes scanning: ${e.message}"}
             }
         }
     }
@@ -208,11 +212,11 @@ class MapDownloadManagerImpl(
 
             // Deserialize XML into Kotlin tree structures
             val container = xmlParser.decodeFromString(RegionsListXml.serializer(), rawXml)
-            println("Log XML: Successfully deserialized ${container.regions.size} root regions from XML tree")
+            Napier.d(tag = LOGGER_TAG) {"Log XML: Successfully deserialized ${container.regions.size} root regions from XML tree"}
 
             container.regions
         } catch (e: Exception) {
-            println("Log XML CRITICAL ERROR during tree parsing: ${e.message}")
+            Napier.d(tag = LOGGER_TAG) {"Log XML CRITICAL ERROR during tree parsing: ${e.message}"}
             e.printStackTrace()
             emptyList()
         }

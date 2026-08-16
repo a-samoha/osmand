@@ -3,6 +3,8 @@ package com.samos.osmand.data.repository
 import com.samos.osmand.data.source.OsmandApi
 import com.samos.osmand.domain.model.MapDownloadResult
 import com.samos.osmand.domain.repository.MapRepository
+import com.samos.osmand.logger.LOGGER_TAG
+import io.github.aakira.napier.Napier
 import io.ktor.client.statement.bodyAsChannel
 import io.ktor.http.contentLength
 import io.ktor.utils.io.core.remaining
@@ -71,21 +73,21 @@ class MapRepositoryImpl(
                                 if (progressPercent != lastSentPercent) {
                                     lastSentPercent = progressPercent
                                     emit(MapDownloadResult.Progress(progressPercent))
-                                    println("Download progress: $progressPercent%")
+                                    Napier.d(tag = LOGGER_TAG) {"Download progress: $progressPercent%"}
                                 }
                             } else {
                                 val mbDownloaded = totalBytesDownloaded / (1024 * 1024)
-                                println("Downloaded: $mbDownloaded MB (Total size unknown)")
+                                Napier.d(tag = LOGGER_TAG) {"Downloaded: $mbDownloaded MB (Total size unknown)"}
                             }
                         }
                     }
 
                     emit(MapDownloadResult.Progress(100))
                     delay(50.milliseconds)
-                    println("Download status: Guaranteed 100% progress emitted after completion.")
+                    Napier.d(tag = LOGGER_TAG) {"Download status: Guaranteed 100% progress emitted after completion."}
 
                 } catch (streamException: Exception) {
-                    println("Log Network ERROR: Connection interrupted mid-download: ${streamException.message}")
+                    Napier.d(tag = LOGGER_TAG) {"Log Network ERROR: Connection interrupted mid-download: ${streamException.message}"}
                     throw streamException
                 }
             }

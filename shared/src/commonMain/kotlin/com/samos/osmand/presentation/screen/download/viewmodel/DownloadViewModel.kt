@@ -9,9 +9,11 @@ import com.samos.osmand.domain.network.DownloadManagerEffect.ConnectionLost
 import com.samos.osmand.domain.network.MapDownloadManager
 import com.samos.osmand.domain.network.NetworkMonitor
 import com.samos.osmand.domain.repository.MemoryRepository
+import com.samos.osmand.logger.LOGGER_TAG
 import com.samos.osmand.presentation.mvi.MviViewModel
 import com.samos.osmand.presentation.navigation.router.ComposeRouter
 import com.samos.osmand.presentation.navigation.router.NavigationRoute.Download
+import io.github.aakira.napier.Napier
 import kotlinx.coroutines.launch
 
 class DownloadViewModel(
@@ -98,7 +100,7 @@ class DownloadViewModel(
                 if (node != null) {
                     startMapDownload(node, true)
                 } else {
-                    println("Log MVI ERROR: Could not find RegionNode for download with ID: ${intent.mapId}")
+                    Napier.d(tag = LOGGER_TAG) {"Log MVI ERROR: Could not find RegionNode for download with ID: ${intent.mapId}"}
                 }
             }
             is DownloadIntent.OnCancelDownloadClick -> {
@@ -106,7 +108,7 @@ class DownloadViewModel(
                 if (node != null) {
                     cancelMapDownload(node)
                 } else {
-                    println("Log MVI ERROR: Could not find RegionNode for cancel downloading with ID: ${intent.mapId}")
+                    Napier.d(tag = LOGGER_TAG) {"Log MVI ERROR: Could not find RegionNode for cancel downloading with ID: ${intent.mapId}"}
                 }
             }
             is DownloadIntent.OnDeleteMapClick -> {
@@ -117,7 +119,7 @@ class DownloadViewModel(
                 if (node != null) {
                     deleteMap(node)
                 } else {
-                    println("Log MVI ERROR: Could not find RegionNode for deletion with ID: ${intent.mapId}")
+                    Napier.d(tag = LOGGER_TAG) {"Log MVI ERROR: Could not find RegionNode for deletion with ID: ${intent.mapId}"}
                 }
                 updateState { it.copy(mapIdToDelete = null) }
                 sendEffect(DownloadEffect.ShowToast(ToastType.OnMapDeleted))

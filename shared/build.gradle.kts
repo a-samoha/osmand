@@ -72,6 +72,8 @@ kotlin {
             implementation(libs.ktor.client.logging)
 
             implementation(libs.github.xmlutil.serialization) // FOR Parsing XML assets file
+
+            implementation(libs.napier)
         }
         commonTest.dependencies {
             implementation(libs.kotlin.test)
