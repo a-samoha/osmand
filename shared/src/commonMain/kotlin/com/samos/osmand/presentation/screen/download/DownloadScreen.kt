@@ -15,6 +15,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
@@ -289,7 +290,7 @@ private fun DownloadItemRow(
 ) {
     Row(
         modifier = Modifier.fillMaxWidth()
-            .padding(16.dp)
+            .size(52.dp)
             .noRippleClickable {
                 if (item.isContainer) onMapDownloadItemClick.invoke(item.id)
             },
@@ -304,76 +305,84 @@ private fun DownloadItemRow(
             tint = leftIconTint
         )
 
-        Column(
-            modifier = Modifier
-                .weight(1f)
-                .padding(horizontal = 24.dp)
-        ) {
-            Text(
-                text = item.displayName,
-                color = MaterialTheme.colorScheme.onBackground,
-                overflow = TextOverflow.Ellipsis,
-                maxLines = 1,
-                style = MaterialTheme.typography.bodyMedium,
+        Column(modifier = Modifier.weight(1f)) {
+            Row(
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(end = 16.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Column(
+                    modifier = Modifier
+                        .weight(1f)
+                        .padding(horizontal = 24.dp)
+                ) {
+                    Text(
+                        text = item.displayName,
+                        color = MaterialTheme.colorScheme.onBackground,
+                        overflow = TextOverflow.Ellipsis,
+                        maxLines = 1,
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
+
+                    if (item.status is DownloadStatus.Downloading
+                        || item.status is DownloadStatus.InQueue
+                    ) {
+                        LinearProgressIndicator(
+                            progress = {
+                                if (item.status is DownloadStatus.Downloading) item.status.progress / 100f
+                                else 0f
+                            },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(top = 4.dp)
+                                .height(3.dp),
+                            color = MapDownloadingProgressColor,
+                            trackColor = MaterialTheme.colorScheme.background,
+                        )
+                    }
+                }
+
+                if (!item.isContainer) {
+                    when (item.status) {
+                        is DownloadStatus.Downloaded -> {
+                            Icon(
+                                painter = painterResource(Res.drawable.ic_delete),
+                                contentDescription = "Delete Map",
+                                modifier = Modifier
+                                    .noRippleClickable { onDeleteMapClick.invoke(item.id) }
+                                    .size(24.dp)
+                                    .padding(4.dp),
+                                tint = MaterialTheme.colorScheme.onSurface
+                            )
+                        }
+                        is DownloadStatus.Downloading, DownloadStatus.InQueue -> {
+                            Icon(
+                                painter = painterResource(Res.drawable.ic_cancel),
+                                contentDescription = "Cancel Download",
+                                modifier = Modifier
+                                    .noRippleClickable { onCancelDownloadClick.invoke(item.id) },
+                                tint = MaterialTheme.colorScheme.onSurface
+                            )
+                        }
+                        else -> {
+                            Icon(
+                                painter = painterResource(Res.drawable.ic_download),
+                                contentDescription = "Start Download",
+                                modifier = Modifier
+                                    .noRippleClickable { onDownloadMapClick.invoke(item.id) },
+                                tint = MaterialTheme.colorScheme.onSurface
+                            )
+                        }
+                    }
+                }
+            }
+            HorizontalDivider(
+                modifier = Modifier.fillMaxWidth()
+                    .padding(start = 24.dp),
+                thickness = 1.dp,
+                color = MaterialTheme.colorScheme.background
             )
-
-            if (item.status is DownloadStatus.Downloading) {
-                LinearProgressIndicator(
-                    progress = { item.status.progress / 100f },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(top = 4.dp)
-                        .height(3.dp),
-                    color = MapDownloadingProgressColor,
-                    trackColor = MaterialTheme.colorScheme.background,
-                )
-            }
-
-            if (item.status is DownloadStatus.InQueue) {
-                LinearProgressIndicator(
-                    progress = { 0f },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(top = 4.dp)
-                        .height(3.dp),
-                    color = MapDownloadingProgressColor,
-                    trackColor = MaterialTheme.colorScheme.background,
-                )
-            }
-        }
-
-        if (!item.isContainer) {
-            when (item.status) {
-                is DownloadStatus.Downloaded -> {
-                    Icon(
-                        painter = painterResource(Res.drawable.ic_delete),
-                        contentDescription = "Delete Map",
-                        modifier = Modifier
-                            .noRippleClickable { onDeleteMapClick.invoke(item.id) }
-                            .size(24.dp)
-                            .padding(4.dp),
-                        tint = MaterialTheme.colorScheme.onSurface
-                    )
-                }
-                is DownloadStatus.Downloading, DownloadStatus.InQueue -> {
-                    Icon(
-                        painter = painterResource(Res.drawable.ic_cancel),
-                        contentDescription = "Cancel Download",
-                        modifier = Modifier
-                            .noRippleClickable { onCancelDownloadClick.invoke(item.id) },
-                        tint = MaterialTheme.colorScheme.onSurface
-                    )
-                }
-                else -> {
-                    Icon(
-                        painter = painterResource(Res.drawable.ic_download),
-                        contentDescription = "Start Download",
-                        modifier = Modifier
-                            .noRippleClickable { onDownloadMapClick.invoke(item.id) },
-                        tint = MaterialTheme.colorScheme.onSurface
-                    )
-                }
-            }
         }
     }
 }
