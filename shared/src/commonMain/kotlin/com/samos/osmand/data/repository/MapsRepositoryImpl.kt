@@ -49,45 +49,58 @@ class MapRepositoryImpl(
 
             httpStatement.execute { response ->
                 val totalBytes = response.contentLength() ?: -1L
-                if (totalBytes <= 0) {
-                    emit(MapDownloadResult.Progress(100))
-                    delay(50.milliseconds)
-                    println("Download status: Force-emitted 100% progress for dynamic stream.")
-                }
                 val channel = response.bodyAsChannel()
-
                 val fileSink = SystemFileSystem.sink(targetFilePath).buffered()
 
                 val bufferSize = 8192L
                 var totalBytesDownloaded = 0L
                 var lastSentPercent = -1
 
-                fileSink.use { sink ->
-                    // Read the stream channel until it is completely exhausted
-                    while (!channel.exhausted()) {
-                        val chunk = channel.readRemaining(bufferSize)
-                        totalBytesDownloaded += chunk.remaining
-                        chunk.transferTo(sink)
+                // 💡 FIX: Wrap the actual file streaming and writing loop into an inner try-catch
+                try {
+                    fileSink.use { sink ->
+                        // Read the stream channel until it is completely exhausted
+                        while (!channel.exhausted()) {
+                            val chunk = channel.readRemaining(bufferSize)
+                            totalBytesDownloaded += chunk.remaining
+                            chunk.transferTo(sink)
 
-                        if (totalBytes > 0) {
-                            val progressPercent =
-                                ((totalBytesDownloaded.toDouble() / totalBytes) * 100).roundToInt()
-                            if (progressPercent != lastSentPercent) {
-                                lastSentPercent = progressPercent
-                                emit(MapDownloadResult.Progress(progressPercent))
-                                println("Download progress: $progressPercent%")
+                            if (totalBytes > 0) {
+                                val progressPercent =
+                                    ((totalBytesDownloaded.toDouble() / totalBytes) * 100).roundToInt()
+                                if (progressPercent != lastSentPercent) {
+                                    lastSentPercent = progressPercent
+                                    emit(MapDownloadResult.Progress(progressPercent))
+                                    println("Download progress: $progressPercent%")
+                                }
+                            } else {
+                                val mbDownloaded = totalBytesDownloaded / (1024 * 1024)
+                                println("Downloaded: $mbDownloaded MB (Total size unknown)")
                             }
-                        } else {
-                            // Log the download volume incrementally if Content-Length is missing
-                            val mbDownloaded = totalBytesDownloaded / (1024 * 1024)
-                            println("Downloaded: $mbDownloaded MB (Total size unknown)")
                         }
                     }
+
+                    emit(MapDownloadResult.Progress(100))
+                    delay(50.milliseconds)
+                    println("Download status: Guaranteed 100% progress emitted after completion.")
+
+                } catch (streamException: Exception) {
+                    println("Log Network ERROR: Connection interrupted mid-download: ${streamException.message}")
+                    throw streamException
                 }
             }
+
             emit(MapDownloadResult.Success)
+
         } catch (e: Exception) {
-            emit(MapDownloadResult.Error(e.message ?: "Unknown error"))
+            val isNetworkDrop =
+                e.message?.contains("Connection", ignoreCase = true) == true
+                        || e.message?.contains("host", ignoreCase = true) == true
+            val resolvedMessage =
+                if (isNetworkDrop) "Connection lost"
+                else (e.message ?: "Unknown error")
+
+            emit(MapDownloadResult.Error(resolvedMessage))
         }
     }
 }

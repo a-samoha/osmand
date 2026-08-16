@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import androidx.navigation.toRoute
 import com.samos.osmand.domain.model.DownloadStatus
 import com.samos.osmand.domain.model.xml.RegionNode
+import com.samos.osmand.domain.network.DownloadManagerEffect.ConnectionLost
 import com.samos.osmand.domain.network.MapDownloadManager
 import com.samos.osmand.domain.network.NetworkMonitor
 import com.samos.osmand.domain.repository.MemoryRepository
@@ -32,6 +33,14 @@ class DownloadViewModel(
                     usableMemory = formatBytes(freeSpace.first),
                     usedMemoryProgress = freeSpace.second,
                 )
+            }
+        }
+
+        viewModelScope.launch {
+            downloadManager.downloadEffects.collect { effect ->
+                when (effect) {
+                    ConnectionLost -> sendEffect(DownloadEffect.ShowToast(ToastType.ConnectionLost))
+                }
             }
         }
 

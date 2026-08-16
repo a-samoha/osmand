@@ -54,6 +54,7 @@ import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.koinInject
 import org.koin.compose.viewmodel.koinViewModel
 import osmand.shared.generated.resources.Res
+import osmand.shared.generated.resources.connection_lost
 import osmand.shared.generated.resources.download_complete
 import osmand.shared.generated.resources.download_maps
 import osmand.shared.generated.resources.ic_cancel
@@ -76,9 +77,10 @@ fun DownloadScreen(
             when (effect) {
                 is DownloadEffect.ShowToast -> {
                     toastResId = when (effect.type) {
+                        ToastType.NoInternetConnection -> Res.string.no_internet_connection
+                        ToastType.ConnectionLost -> Res.string.connection_lost
                         ToastType.OnMapDownloaded -> Res.string.download_complete
                         ToastType.OnMapDeleted -> Res.string.successfully_deleted
-                        ToastType.NoInternetConnection -> Res.string.no_internet_connection
                     }
                 }
             }

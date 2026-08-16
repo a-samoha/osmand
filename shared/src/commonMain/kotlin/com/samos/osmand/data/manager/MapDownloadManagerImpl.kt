@@ -1,16 +1,19 @@
 package com.samos.osmand.data.manager
 
-import com.samos.osmand.domain.network.MapDownloadManager
 import com.samos.osmand.domain.model.DownloadStatus
 import com.samos.osmand.domain.model.MapDownloadResult
 import com.samos.osmand.domain.model.xml.RegionNode
 import com.samos.osmand.domain.model.xml.RegionsListXml
+import com.samos.osmand.domain.network.DownloadManagerEffect
+import com.samos.osmand.domain.network.MapDownloadManager
 import com.samos.osmand.domain.repository.MapRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -33,6 +36,10 @@ class MapDownloadManagerImpl(
 
     private val _downloadStates = MutableStateFlow<Map<RegionNode, DownloadStatus>>(emptyMap())
     override val downloadStates = _downloadStates.asStateFlow()
+
+    private val _downloadEffects = MutableSharedFlow<DownloadManagerEffect>(extraBufferCapacity = 1)
+    override val downloadEffects = _downloadEffects.asSharedFlow()
+
     private val activeJobs = mutableMapOf<RegionNode, Job>()
 
     init {
@@ -46,6 +53,8 @@ class MapDownloadManagerImpl(
         _downloadStates.update { it + (node to DownloadStatus.InQueue) }
 
         val downloadJob = downloadScope.launch {
+            var isSuccess = false
+
             try {
                 queueMutex.withLock {
                     _downloadStates.update { it + (node to DownloadStatus.Downloading(0)) }
@@ -55,23 +64,29 @@ class MapDownloadManagerImpl(
                         when (result) {
                             is MapDownloadResult.Progress -> {
                                 _downloadStates.update {
-                                    it + (node to DownloadStatus.Downloading(
-                                        result.percent
-                                    ))
+                                    it + (node to DownloadStatus.Downloading(result.percent))
                                 }
                             }
                             is MapDownloadResult.Success -> {
+                                isSuccess = true
                                 _downloadStates.update { it + (node to DownloadStatus.Downloaded) }
                             }
                             is MapDownloadResult.Error -> {
-                                val errorMessage =
-                                    if (result.message.contains("UnknownHostException") ||
-                                        result.message.contains("ConnectException")
-                                    ) {
-                                        "No internet connection. Please check your network."
-                                    } else {
-                                        result.message
-                                    }
+                                val isNetworkIssue =
+                                    result.message.contains("UnknownHostException") ||
+                                            result.message.contains("ConnectException") ||
+                                            result.message == "Connection lost"
+
+                                val errorMessage = if (isNetworkIssue) {
+                                    "No internet connection. Please check your network."
+                                } else {
+                                    result.message
+                                }
+
+                                if (isNetworkIssue) {
+                                    _downloadEffects.tryEmit(DownloadManagerEffect.ConnectionLost)
+                                }
+
                                 _downloadStates.update {
                                     it + (node to DownloadStatus.Error(errorMessage))
                                 }
@@ -81,6 +96,7 @@ class MapDownloadManagerImpl(
                     }
                 }
             } finally {
+                if (!isSuccess) deleteMapFile(node)
                 activeJobs.remove(node)
             }
         }
