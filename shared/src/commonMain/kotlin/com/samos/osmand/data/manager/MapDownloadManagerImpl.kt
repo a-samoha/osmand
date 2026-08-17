@@ -7,6 +7,7 @@ import com.samos.osmand.domain.model.xml.RegionsListXml
 import com.samos.osmand.domain.network.DownloadManagerEffect
 import com.samos.osmand.domain.network.MapDownloadManager
 import com.samos.osmand.domain.repository.MapRepository
+import com.samos.osmand.domain.service.ServiceTracker
 import com.samos.osmand.logger.LOGGER_TAG
 import io.github.aakira.napier.Napier
 import kotlinx.coroutines.CoroutineScope
@@ -32,6 +33,7 @@ private const val downloads = "Downloads"
 
 class MapDownloadManagerImpl(
     private val repository: MapRepository,
+    private val serviceTracker: ServiceTracker,
 ) : MapDownloadManager {
 
     private val downloadScope = CoroutineScope(Dispatchers.IO.limitedParallelism(1))
@@ -53,8 +55,15 @@ class MapDownloadManagerImpl(
     /**
      * 2. ADDING TO QUEUE: Sequential loading via Mutex
      */
-    override fun enqueueDownload(node: RegionNode, forceOverwrite: Boolean) {
+    override fun enqueueDownload(
+        node: RegionNode,
+        forceOverwrite: Boolean,
+        startForeground: Boolean
+    ) {
+        if (activeJobs.containsKey(node)) return
         _downloadStates.update { it + (node to DownloadStatus.InQueue) }
+
+        if (startForeground) serviceTracker.startDownloadService()
 
         val downloadJob = downloadScope.launch {
             var isSuccess = false
@@ -95,13 +104,13 @@ class MapDownloadManagerImpl(
                                     it + (node to DownloadStatus.Error(errorMessage))
                                 }
                             }
-                            is MapDownloadResult.FileAlreadyExists -> {}
                         }
                     }
                 }
             } finally {
                 if (!isSuccess) deleteMapFile(node)
                 activeJobs.remove(node)
+                checkRemainingDownloads()
             }
         }
 
@@ -132,10 +141,19 @@ class MapDownloadManagerImpl(
         if (runningJob != null && runningJob.isActive) {
             runningJob.cancel()
             deleteMapFile(node)
-            Napier.d(tag = LOGGER_TAG) {"Log Network: Download cancelled by user for node: ${node.name}"}
+            Napier.d(tag = LOGGER_TAG) { "Log Network: Download cancelled by user for node: ${node.name}" }
         }
 
         _downloadStates.update { it + (node to DownloadStatus.NotDownloaded) }
+    }
+
+    private fun checkRemainingDownloads() {
+        val hasActiveOrQueue = _downloadStates.value.values.any {
+            it is DownloadStatus.Downloading || it is DownloadStatus.InQueue
+        }
+        if (!hasActiveOrQueue) {
+            serviceTracker.stopDownloadService()
+        }
     }
 
     /**
@@ -173,9 +191,9 @@ class MapDownloadManagerImpl(
 
                 // Publish the complete map list with initial statuses
                 _downloadStates.value = initialStates
-                Napier.d(tag = LOGGER_TAG) {"Log XML: Successfully published ${initialStates.size} maps to StateFlow"}
+                Napier.d(tag = LOGGER_TAG) { "Log XML: Successfully published ${initialStates.size} maps to StateFlow" }
             } catch (e: Exception) {
-                Napier.d(tag = LOGGER_TAG) {"Critical error during local nodes scanning: ${e.message}"}
+                Napier.d(tag = LOGGER_TAG) { "Critical error during local nodes scanning: ${e.message}" }
             }
         }
     }
@@ -212,11 +230,11 @@ class MapDownloadManagerImpl(
 
             // Deserialize XML into Kotlin tree structures
             val container = xmlParser.decodeFromString(RegionsListXml.serializer(), rawXml)
-            Napier.d(tag = LOGGER_TAG) {"Log XML: Successfully deserialized ${container.regions.size} root regions from XML tree"}
+            Napier.d(tag = LOGGER_TAG) { "Log XML: Successfully deserialized ${container.regions.size} root regions from XML tree" }
 
             container.regions
         } catch (e: Exception) {
-            Napier.d(tag = LOGGER_TAG) {"Log XML CRITICAL ERROR during tree parsing: ${e.message}"}
+            Napier.d(tag = LOGGER_TAG) { "Log XML CRITICAL ERROR during tree parsing: ${e.message}" }
             e.printStackTrace()
             emptyList()
         }

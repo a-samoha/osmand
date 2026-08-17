@@ -1,0 +1,7 @@
+<resources>
+    <string name="downloading">Downloading: %1$s</string>
+    <string name="waiting_for_downloading">Waiting for download queue…</string>
+    <string name="downloading_maps">Downloading maps</string>
+    <string name="kmr_map_download_notifications">KMR Map Download Notifications</string>
+    <string name="displays_the_current_progress_of_map_file_downloads_in_the_background">Displays the current progress of map file downloads in the background.</string>
+</resources>
