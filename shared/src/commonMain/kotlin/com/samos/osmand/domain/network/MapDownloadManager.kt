@@ -9,7 +9,11 @@ interface MapDownloadManager {
     val downloadStates: StateFlow<Map<RegionNode, DownloadStatus>>
     val downloadEffects: SharedFlow<DownloadManagerEffect>
 
-    fun enqueueDownload(node: RegionNode, forceOverwrite: Boolean = false)
+    fun enqueueDownload(
+        node: RegionNode,
+        forceOverwrite: Boolean = false,
+        startForeground: Boolean = true,
+    )
 
     fun deleteMapFile(node: RegionNode)
 

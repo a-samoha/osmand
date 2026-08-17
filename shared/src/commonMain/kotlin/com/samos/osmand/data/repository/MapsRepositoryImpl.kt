@@ -39,13 +39,7 @@ class MapRepositoryImpl(
         // The full path to our future file (e.g., Downloads/Denmark.zip)
         val targetFilePath = Path(downloadsFolder, fileName)
 
-        // 2. CHECK: If the file exists and the user has NOT yet approved to overwrite.
-        if (SystemFileSystem.exists(targetFilePath) && !forceOverwrite) {
-            emit(MapDownloadResult.FileAlreadyExists)
-            return@flow // Pause execution, wait for user reaction
-        }
-
-        // 3. If the file does not exist OR the user clicked "Overwrite" — start the download.
+        // 2. If the file does not exist OR the user clicked "Overwrite" — start the download.
         try {
             val httpStatement = api.downloadMap(standard = "yes", fileName = fileName)
 
