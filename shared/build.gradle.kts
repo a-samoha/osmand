@@ -64,6 +64,8 @@ kotlin {
             implementation(libs.koin.core)
             implementation(libs.koin.compose.viewmodel)
 
+            implementation(libs.androidx.datastore.preferences) // For Shared Preferencies
+
             // --- Ktorfit (instead Retrofir)
             implementation(libs.ktorfit.lib)
             implementation(libs.ktor.client.core)

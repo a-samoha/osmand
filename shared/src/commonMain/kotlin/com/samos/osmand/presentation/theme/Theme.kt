@@ -7,6 +7,9 @@ import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 
+enum class AppThemeMode {
+    SYSTEM, LIGHT, DARK
+}
 
 private val lightScheme = lightColorScheme(
     primary = PrimaryLight,
