@@ -48,6 +48,12 @@ kotlin {
             implementation(libs.koin.android)
             implementation(libs.compose.uiTooling)
         }
+        getByName("androidHostTest") {
+            dependencies {
+                implementation(libs.mockk)
+                implementation("androidx.test:core:1.6.1")
+            }
+        }
         commonMain.dependencies {
             implementation(libs.compose.runtime)
             implementation(libs.compose.foundation)
@@ -79,6 +85,9 @@ kotlin {
         }
         commonTest.dependencies {
             implementation(libs.kotlin.test)
+            implementation(libs.kotlinx.coroutines.test)
+            implementation("com.squareup.okio:okio-fakefilesystem:3.18.1")
+            implementation("io.ktor:ktor-client-mock:2.3.12")
         }
     }
 }

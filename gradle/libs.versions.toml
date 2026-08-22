@@ -13,7 +13,9 @@ composeMultiplatform = "1.11.1"
 datastorePreferences = "1.2.1"
 junit = "4.13.2"
 kotlin = "2.4.10"
+kotlinxCoroutines = "1.11.0"
 material3 = "1.11.0-alpha07"
+mockk = "1.14.11"
 napier = "2.7.1"
 navigationCompose = "2.9.2"
 kotlinxSerializationCore = "1.11.0"
@@ -62,6 +64,10 @@ ktor-serialization-kotlinx-json = { module = "io.ktor:ktor-serialization-kotlinx
 ktor-client-logging = { module = "io.ktor:ktor-client-logging", version.ref = "ktorClientCore" }
 
 napier = { module = "io.github.aakira:napier", version.ref = "napier" } # Timber analog for KMP
+
+# Test
+mockk = { module = "io.mockk:mockk", version.ref = "mockk" }
+kotlinx-coroutines-test = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-test", version.ref = "kotlinxCoroutines" }
 
 [plugins]
 androidApplication = { id = "com.android.application", version.ref = "agp" }
